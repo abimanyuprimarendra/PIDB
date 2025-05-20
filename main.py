@@ -4,11 +4,24 @@ import numpy as np
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 import matplotlib.pyplot as plt
 
-# 1. Load Dataset
+# Fungsi untuk convert link sharing Google Drive ke direct download
+def gdrive_to_direct_url(gdrive_url):
+    # Format link: https://drive.google.com/file/d/FILE_ID/view?usp=sharing
+    file_id = gdrive_url.split('/d/')[1].split('/')[0]
+    direct_url = f'https://drive.google.com/uc?export=download&id={file_id}'
+    return direct_url
+
 @st.cache_data
 def load_data():
-    tour_df = pd.read_csv('Dataset Wisata Jogja.csv')
-    rating_df = pd.read_csv('Dataset Rating Wisata Jogja.csv')
+    # Ganti link ini sesuai file kamu di Google Drive (public share)
+    url_tour = "https://drive.google.com/file/d/1toXFdx4bIbDevyPSmEdbs2gG3PR9iYI/view?usp=sharing"
+    url_rating = "https://drive.google.com/file/d/1NUbzdY_ZNVI2Gc9avZaTvQNT6gp5tc4y/view?usp=sharing"
+    
+    direct_url_tour = gdrive_to_direct_url(url_tour)
+    direct_url_rating = gdrive_to_direct_url(url_rating)
+    
+    tour_df = pd.read_csv(direct_url_tour)
+    rating_df = pd.read_csv(direct_url_rating)
     tour_df.dropna(inplace=True)
     rating_df.dropna(inplace=True)
     tour_df.drop_duplicates(inplace=True)
@@ -60,20 +73,16 @@ def evaluate_model(k=6):
     return mae, rmse
 
 # Streamlit App
-st.title("Hybrid Recommender System - Wisata Jogja")
-st.write("Rekomendasi Tempat Wisata berdasarkan rating user dan kesamaan item (Item-Based Collaborative Filtering)")
+st.title("Hybrid Recommender System - Wisata Jogja (Drive Dataset)")
 
-# Pilih User
 user_list = user_item_matrix.index.tolist()
 selected_user = st.selectbox("Pilih User ID:", user_list)
 
 if selected_user:
-    # Tampilkan riwayat rating user
     st.subheader("Riwayat Rating User")
     user_ratings = user_item_matrix.loc[selected_user].dropna()
     st.table(user_ratings.reset_index().rename(columns={selected_user:'Rating'}))
 
-    # Rekomendasi tempat wisata yang belum dirating user
     unrated_places = user_item_matrix.loc[selected_user][user_item_matrix.loc[selected_user].isna()].index
     recommendations = []
     for place in unrated_places:
@@ -85,13 +94,11 @@ if selected_user:
     for place, rating in recommendations[:top_n]:
         st.write(f"**{place}** - Prediksi Rating: {rating}")
 
-    # Evaluasi model
     mae, rmse = evaluate_model(k=6)
     st.subheader("Evaluasi Model (k=6)")
     st.write(f"MAE: {mae:.4f}")
     st.write(f"RMSE: {rmse:.4f}")
 
-    # Visualisasi scatter plot actual vs predicted ratings
     preds = []
     for idx, row in df_ibcf.iterrows():
         user = row['User_Id']
@@ -110,4 +117,3 @@ if selected_user:
     ax.set_ylabel('Rating Prediksi')
     ax.set_title('Perbandingan Rating Asli vs Prediksi')
     st.pyplot(fig)
-
