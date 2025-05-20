@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 
 @st.cache_data
 def load_data():
-    url_tour = "https://drive.google.com/uc?id=1toXFdx4bIbDevyPSmEdbs2gG3PR9iYI"
-    url_rating = "https://drive.google.com/uc?id=1NUbzdY_ZNVI2Gc9avZaTvQNT6gp5tc4y"
+    url_tour = "https://drive.google.com/uc?export=download&id=1toXFdx4bIbDevyPSmEdbs2gG3PR9iYI"
+    url_rating = "https://drive.google.com/uc?export=download&id=1NUbzdY_ZNVI2Gc9avZaTvQNT6gp5tc4y"
     
     tour_df = pd.read_csv(url_tour)
     rating_df = pd.read_csv(url_rating)
@@ -89,6 +89,7 @@ if selected_user:
     st.write(f"MAE: {mae:.4f}")
     st.write(f"RMSE: {rmse:.4f}")
 
+    # Plot perbandingan
     preds = []
     for idx, row in df_ibcf.iterrows():
         user = row['User_Id']
@@ -102,8 +103,8 @@ if selected_user:
 
     fig, ax = plt.subplots()
     ax.scatter(actual_ratings, predicted_ratings, alpha=0.4)
-    ax.plot([1,5], [1,5], 'r--')
+    ax.plot([1, 5], [1, 5], 'r--')
     ax.set_xlabel('Rating Asli')
     ax.set_ylabel('Rating Prediksi')
     ax.set_title('Perbandingan Rating Asli vs Prediksi')
-    st.pyplot(fig) perbaiki
+    st.pyplot(fig)
