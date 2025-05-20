@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 
 @st.cache_data
 def load_data():
-    url_tour = "https://drive.google.com/uc?id=1toXFdx4bIbDevyPSmEdbs2gG3PR9iYI"
-    url_rating = "https://drive.google.com/uc?id=1NUbzdY_ZNVI2Gc9avZaTvQNT6gp5tc4y"
+    url_tour = "https://drive.google.com/file/d/1toXFdx4bIbDevyPSmEdbs2gG3PR9iYI-/view?usp=drive_link"
+    url_rating = "https://drive.google.com/file/d/1NUbzdY_ZNVI2Gc9avZaTvQNT6gp5tc4y/view?usp=drive_link"
     
     tour_df = pd.read_csv(url_tour)
     rating_df = pd.read_csv(url_rating)
