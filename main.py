@@ -4,28 +4,19 @@ import numpy as np
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 import matplotlib.pyplot as plt
 
-# Fungsi untuk convert link sharing Google Drive ke direct download
-def gdrive_to_direct_url(gdrive_url):
-    # Format link: https://drive.google.com/file/d/FILE_ID/view?usp=sharing
-    file_id = gdrive_url.split('/d/')[1].split('/')[0]
-    direct_url = f'https://drive.google.com/uc?export=download&id={file_id}'
-    return direct_url
-
 @st.cache_data
 def load_data():
-    # Ganti link ini sesuai file kamu di Google Drive (public share)
-    url_tour = "https://drive.google.com/file/d/1toXFdx4bIbDevyPSmEdbs2gG3PR9iYI/view?usp=sharing"
-    url_rating = "https://drive.google.com/file/d/1NUbzdY_ZNVI2Gc9avZaTvQNT6gp5tc4y/view?usp=sharing"
+    url_tour = "https://drive.google.com/uc?id=1toXFdx4bIbDevyPSmEdbs2gG3PR9iYI"
+    url_rating = "https://drive.google.com/uc?id=1NUbzdY_ZNVI2Gc9avZaTvQNT6gp5tc4y"
     
-    direct_url_tour = gdrive_to_direct_url(url_tour)
-    direct_url_rating = gdrive_to_direct_url(url_rating)
+    tour_df = pd.read_csv(url_tour)
+    rating_df = pd.read_csv(url_rating)
     
-    tour_df = pd.read_csv(direct_url_tour)
-    rating_df = pd.read_csv(direct_url_rating)
     tour_df.dropna(inplace=True)
     rating_df.dropna(inplace=True)
     tour_df.drop_duplicates(inplace=True)
     rating_df.drop_duplicates(inplace=True)
+    
     merged_df = pd.merge(rating_df, tour_df, on='Place_Id', how='inner')
     return tour_df, rating_df, merged_df
 
@@ -56,7 +47,6 @@ def predict_rating(user_id, item_name, k=6):
         return user_ratings.mean()
     return numerator / denominator
 
-# Evaluasi model
 def evaluate_model(k=6):
     preds = []
     for idx, row in df_ibcf.iterrows():
