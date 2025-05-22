@@ -30,6 +30,10 @@ def load_data():
     rating_df.drop_duplicates(inplace=True)
     tour_df.dropna(subset=['Place_Name'], inplace=True)
     
+    # Pastikan lat & lon ada dan bertipe float
+    tour_df['Latitude'] = pd.to_numeric(tour_df['Latitude'], errors='coerce')
+    tour_df['Longitude'] = pd.to_numeric(tour_df['Longitude'], errors='coerce')
+    
     return tour_df, rating_df
 
 # ---------- PREPARASI DATA & METODE PREDIKSI ----------
@@ -37,11 +41,6 @@ def load_data():
 def prepare_data(tour_df, rating_df):
     user_item_matrix = rating_df.pivot_table(index='User_Id', columns='Place_Id', values='Place_Ratings')
     user_item_filled = user_item_matrix.fillna(0)
-    cosine_sim_matrix = pd.DataFrame(
-        cosine_similarity(user_item_filled.T),
-        index=user_item_matrix.columns,
-        columns=user_item_matrix.columns
-    )
     item_similarity = user_item_matrix.corr(method='pearson')
     item_similarity_filled = item_similarity.fillna(0)
     mean_ratings_dict = user_item_matrix.mean().to_dict()
@@ -109,6 +108,14 @@ def evaluate_model(user_item_matrix, rating_df, mean_ratings_dict, top_k_neighbo
 
     return mae, rmse, elapsed_time
 
+def recommend_places(selected_place_id, top_k_neighbors, tour_df, k=5):
+    neighbors = top_k_neighbors.get(selected_place_id, {})
+    neighbors_sorted = sorted(neighbors.items(), key=lambda x: x[1], reverse=True)
+    top_recommendations = neighbors_sorted[:k]
+    place_ids = [pid for pid, sim in top_recommendations]
+    recommended_places = tour_df[tour_df['Place_Id'].isin(place_ids)]
+    return recommended_places
+
 # ========== STREAMLIT UI ==========
 
 st.title("Sistem Rekomendasi Tempat Wisata Yogyakarta")
@@ -117,45 +124,54 @@ with st.spinner('Loading data...'):
     tour_df, rating_df = load_data()
     user_item_matrix, item_similarity_filled, mean_ratings_dict, tour_df, rating_df = prepare_data(tour_df, rating_df)
 
-k_values = st.sidebar.multiselect("Pilih nilai k (jumlah tetangga):", options=[2, 4, 6, 8, 10], default=[4, 6, 8])
+k = st.sidebar.slider("Pilih nilai k (jumlah tetangga):", 2, 10, 6)
 
-if st.button("Evaluasi Model dan Visualisasi"):
-    mae_list, rmse_list, time_list = [], [], []
-    
-    for k in k_values:
-        top_k_neighbors = precompute_top_k_neighbors(item_similarity_filled, k=k)
-        mae, rmse, waktu = evaluate_model(user_item_matrix, rating_df, mean_ratings_dict, top_k_neighbors)
-        mae_list.append(mae)
-        rmse_list.append(rmse)
-        time_list.append(waktu)
-    
-    # Plot visualisasi
-    fig, axs = plt.subplots(1, 3, figsize=(18, 5))
-    
-    axs[0].plot(k_values, mae_list, marker='o', color='blue')
-    axs[0].set_title("MAE vs Jumlah Tetangga (k)")
-    axs[0].set_xlabel("Jumlah Tetangga (k)")
-    axs[0].set_ylabel("MAE")
-    axs[0].grid(True)
-    
-    axs[1].plot(k_values, rmse_list, marker='s', color='green')
-    axs[1].set_title("RMSE vs Jumlah Tetangga (k)")
-    axs[1].set_xlabel("Jumlah Tetangga (k)")
-    axs[1].set_ylabel("RMSE")
-    axs[1].grid(True)
-    
-    axs[2].plot(k_values, time_list, marker='^', color='orange')
-    axs[2].set_title("Waktu Prediksi (ms) vs Jumlah Tetangga (k)")
-    axs[2].set_xlabel("Jumlah Tetangga (k)")
-    axs[2].set_ylabel("Waktu Prediksi (ms)")
-    axs[2].grid(True)
-    
-    st.pyplot(fig)
-    
-    eval_df = pd.DataFrame({
-        'Jumlah Tetangga (k)': k_values,
-        'MAE': mae_list,
-        'RMSE': rmse_list,
-        'Waktu Prediksi (ms)': time_list
-    })
-    st.dataframe(eval_df)
+top_k_neighbors = precompute_top_k_neighbors(item_similarity_filled, k=k)
+
+st.header("Evaluasi Model")
+if st.button("Evaluasi dan Visualisasi"):
+    mae, rmse, waktu = evaluate_model(user_item_matrix, rating_df, mean_ratings_dict, top_k_neighbors)
+    st.write(f"MAE: {mae:.4f}")
+    st.write(f"RMSE: {rmse:.4f}")
+    st.write(f"Waktu Prediksi: {waktu:.2f} ms")
+
+st.header("Rekomendasi Tempat Wisata")
+
+place_options = tour_df[['Place_Id', 'Place_Name']].drop_duplicates().sort_values('Place_Name')
+place_name_list = place_options['Place_Name'].tolist()
+place_id_list = place_options['Place_Id'].tolist()
+
+selected_place_name = st.selectbox("Pilih Tempat Wisata:", place_name_list)
+selected_place_id = place_options[place_options['Place_Name'] == selected_place_name]['Place_Id'].values[0]
+
+recommended_places = recommend_places(selected_place_id, top_k_neighbors, tour_df, k=5)
+
+st.subheader(f"Rekomendasi tempat mirip dengan {selected_place_name}:")
+for idx, row in recommended_places.iterrows():
+    st.markdown(f"**{row['Place_Name']}**")
+
+# Tampilkan map dengan lokasi wisata yang direkomendasikan dan tempat yang dipilih
+map_df = recommended_places[['Latitude', 'Longitude', 'Place_Name']].copy()
+selected_place_coords = tour_df[tour_df['Place_Id'] == selected_place_id][['Latitude', 'Longitude']]
+
+if not selected_place_coords.empty:
+    selected_place_coords = selected_place_coords.iloc[0]
+    # Tambah tempat terpilih dengan marker khusus
+    map_df = pd.concat([
+        map_df,
+        pd.DataFrame({
+            'Latitude': [selected_place_coords['Latitude']],
+            'Longitude': [selected_place_coords['Longitude']],
+            'Place_Name': [selected_place_name]
+        })
+    ])
+
+# Hilangkan baris tanpa koordinat valid
+map_df = map_df.dropna(subset=['Latitude', 'Longitude'])
+
+if not map_df.empty:
+    st.subheader("Peta Lokasi Tempat Wisata")
+    st.map(map_df.rename(columns={'Latitude': 'lat', 'Longitude': 'lon'}))
+else:
+    st.write("Data koordinat lokasi tidak tersedia untuk peta.")
+
