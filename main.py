@@ -1,115 +1,265 @@
-import streamlit as st
+# Import library
 import pandas as pd
 import numpy as np
 import time
+import matplotlib.pyplot as plt
+import seaborn as sns
 from sklearn.metrics.pairwise import cosine_similarity
+from tqdm import tqdm
 from heapq import nlargest
+from concurrent.futures import ThreadPoolExecutor
 
-# ---------- LOAD DATASET ----------
-@st.cache_data(show_spinner=True)
-def load_data():
-    csv_url_tour = "https://drive.google.com/uc?id=1toXFdx4bIbDevyPSmEdbs2gG3PR9iYI-"
-    csv_url_rating = "https://drive.google.com/uc?id=1NUbzdY_ZNVI2Gc9avZaTvQNT6gp5tc4y"
+# ========== DATA LOADING ==========
+tour_df = pd.read_csv(
+    '/content/drive/MyDrive/Semester 6/PIDB JURNAL NON REG SCIENTIST/DATASET PARIWISATA YOGYAKARTA/Dataset Wisata Jogja.csv',
+    dtype=str,
+    thousands='.'
+)
 
-    tour_df = pd.read_csv(csv_url_tour, dtype=str)
-    rating_df = pd.read_csv(csv_url_rating, dtype=str)
+rating_df = pd.read_csv(
+    '/content/drive/MyDrive/Semester 6/PIDB JURNAL NON REG SCIENTIST/DATASET PARIWISATA YOGYAKARTA/Dataset Rating Wisata Jogja.csv',
+    dtype=str
+)
 
-    # Bersihkan spasi di kolom object
-    tour_df = tour_df.apply(lambda col: col.str.strip() if col.dtype == 'object' else col)
-    rating_df = rating_df.apply(lambda col: col.str.strip() if col.dtype == 'object' else col)
+# ========== DATA CLEANING ==========
+tour_df = tour_df.apply(lambda col: col.str.strip() if col.dtype == 'object' else col)
+rating_df = rating_df.apply(lambda col: col.str.strip() if col.dtype == 'object' else col)
 
-    # Konversi Place_Id dan User_Id: 
-    # 1. jadi float dulu untuk hilangkan kemungkinan desimal '.0'
-    # 2. drop rows yang tidak bisa konversi (NaN)
-    # 3. convert ke int, lalu ke str supaya konsisten
-    for df, cols in [(rating_df, ['User_Id', 'Place_Id']), (tour_df, ['Place_Id'])]:
-        for col in cols:
-            df[col] = pd.to_numeric(df[col], errors='coerce')  # ke float, NaN jika gagal
-        df.dropna(subset=cols, inplace=True)  # drop row yang ada NaN di kolom penting
-        for col in cols:
-            df[col] = df[col].astype(int).astype(str)
+rating_df['User_Id'] = rating_df['User_Id'].astype(float).astype(int).astype(str)
+rating_df['Place_Id'] = rating_df['Place_Id'].astype(float).astype(int).astype(str)
+tour_df['Place_Id'] = tour_df['Place_Id'].astype(float).astype(int).astype(str)
 
-    # Pastikan Place_Ratings numeric dan bersih
-    rating_df['Place_Ratings'] = pd.to_numeric(rating_df['Place_Ratings'], errors='coerce')
-    rating_df.dropna(subset=['Place_Ratings'], inplace=True)
-    rating_df.drop_duplicates(inplace=True)
+rating_df['Place_Ratings'] = pd.to_numeric(rating_df['Place_Ratings'], errors='coerce')
+rating_df.dropna(subset=['User_Id', 'Place_Id', 'Place_Ratings'], inplace=True)
+rating_df.drop_duplicates(inplace=True)
+tour_df.dropna(subset=['Place_Name'], inplace=True)
 
-    # Pastikan kolom lain di tour_df valid
-    tour_df.dropna(subset=['Place_Name'], inplace=True)
-    tour_df['Latitude'] = pd.to_numeric(tour_df['Latitude'], errors='coerce')
-    tour_df['Longitude'] = pd.to_numeric(tour_df['Longitude'], errors='coerce')
+# ========== USER-ITEM MATRIX ==========
+user_item_matrix = rating_df.pivot_table(index='User_Id', columns='Place_Id', values='Place_Ratings')
 
-    return tour_df, rating_df
+# ========== COSINE SIMILARITY MATRIX ==========
+user_item_filled = user_item_matrix.fillna(0)
+cosine_sim_matrix = pd.DataFrame(
+    cosine_similarity(user_item_filled.T),
+    index=user_item_matrix.columns,
+    columns=user_item_matrix.columns
+)
 
-# ---------- PREPARASI DATA & METODE PREDIKSI ----------
-@st.cache_data(show_spinner=False)
-def prepare_data(tour_df, rating_df):
-    user_item_matrix = rating_df.pivot_table(index='User_Id', columns='Place_Id', values='Place_Ratings')
-    user_item_matrix = user_item_matrix.fillna(0)
-    item_similarity = user_item_matrix.corr(method='pearson')
-    item_similarity = item_similarity.fillna(0)
-    mean_ratings_dict = user_item_matrix.replace(0, np.nan).mean().to_dict()
-    
-    return user_item_matrix, item_similarity, mean_ratings_dict, tour_df, rating_df
+# ========== ITEM SIMILARITY (PEARSON) UNTUK PREDIKSI ==========
+item_similarity = user_item_matrix.corr(method='pearson')
+item_similarity_filled = item_similarity.fillna(0)
 
-# (Fungsi lain seperti precompute_top_k_neighbors, predict_rating_fast, evaluate_model, recommend_places tetap sama)
+# ========== CACHE DATA ==========
+mean_ratings_dict = user_item_matrix.mean().to_dict()
 
-# ========== STREAMLIT UI ==========
+# ========== PRECOMPUTE TOP-K NEIGHBORS ==========
+def precompute_top_k_neighbors(item_similarity, k=6):
+    top_k_neighbors_dict = {}
+    for place in item_similarity.columns:
+        sim_scores = item_similarity[place]
+        filtered_sim = sim_scores[sim_scores > 0]
+        top_k = nlargest(k, filtered_sim.items(), key=lambda x: x[1])
+        top_k_neighbors_dict[place] = dict(top_k)
+    return top_k_neighbors_dict
 
-st.title("Sistem Rekomendasi Tempat Wisata Yogyakarta")
+top_k_neighbors = precompute_top_k_neighbors(item_similarity_filled, k=6)
 
-with st.spinner('Loading data...'):
-    tour_df, rating_df = load_data()
-    user_item_matrix, item_similarity_filled, mean_ratings_dict, tour_df, rating_df = prepare_data(tour_df, rating_df)
+# ========== PREDIKSI RATING ==========
+def predict_rating_fast(user_id, place_id):
+    if place_id not in user_item_matrix.columns or user_id not in user_item_matrix.index:
+        return np.nan
 
-k = st.sidebar.slider("Pilih nilai k (jumlah tetangga):", 2, 10, 6)
-top_k_neighbors = precompute_top_k_neighbors(item_similarity_filled, k=k)
+    user_ratings = user_item_matrix.loc[user_id]
+    neighbors = top_k_neighbors.get(place_id, {})
+    rated_neighbors = {item: sim for item, sim in neighbors.items() if not np.isnan(user_ratings.get(item, np.nan))}
 
-@st.cache_data
-def cached_evaluate():
-    return evaluate_model(user_item_matrix, rating_df, mean_ratings_dict, top_k_neighbors)
+    if len(rated_neighbors) == 0:
+        return np.nan
 
-mae, rmse, waktu = cached_evaluate()
+    mean_target = mean_ratings_dict.get(place_id, 0)
+    mean_neighbors = user_item_matrix[list(rated_neighbors.keys())].mean()
 
-st.header("Rekomendasi Tempat Wisata")
+    adjusted_ratings = user_ratings[list(rated_neighbors.keys())] - mean_neighbors
+    sim_scores = np.array(list(rated_neighbors.values()))
 
-place_options = tour_df[['Place_Id', 'Place_Name']].drop_duplicates().sort_values('Place_Name')
-place_name_list = place_options['Place_Name'].tolist()
-place_id_list = place_options['Place_Id'].tolist()
+    numerator = np.dot(adjusted_ratings, sim_scores)
+    denominator = np.sum(np.abs(sim_scores))
 
-selected_place_name = st.selectbox("Pilih Tempat Wisata:", place_name_list)
-selected_place_id = place_options[place_options['Place_Name'] == selected_place_name]['Place_Id'].values[0]
+    if denominator == 0:
+        return np.nan
 
-recommended_places = recommend_places(selected_place_id, top_k_neighbors, tour_df, k=5)
+    pred_rating = mean_target + (numerator / denominator)
+    return pred_rating
 
-st.subheader(f"Rekomendasi tempat mirip dengan {selected_place_name}:")
-for idx, row in recommended_places.iterrows():
-    st.markdown(f"**{row['Place_Name']}**")
+# ========== REKOMENDASI ==========
+def recommend_places_optimized(user_id, k=6, n_recommendations=5):
+    user_id = str(user_id).strip()
+    if user_id not in user_item_matrix.index:
+        return f"User {user_id} tidak ditemukan di data rating."
 
-st.markdown("---")
-st.subheader("Evaluasi Model")
-st.write(f"MAE: {mae:.4f}")
-st.write(f"RMSE: {rmse:.4f}")
-st.write(f"Waktu Prediksi: {waktu:.2f} ms")
+    unrated_places = user_item_matrix.loc[user_id][user_item_matrix.loc[user_id].isna()].index
+    pred_ratings = []
 
-map_df = recommended_places[['Latitude', 'Longitude', 'Place_Name']].copy()
-selected_place_coords = tour_df[tour_df['Place_Id'] == selected_place_id][['Latitude', 'Longitude']]
+    for place in unrated_places:
+        rating = predict_rating_fast(user_id, place)
+        if not np.isnan(rating):
+            pred_ratings.append((place, rating))
 
-if not selected_place_coords.empty:
-    selected_place_coords = selected_place_coords.iloc[0]
-    map_df = pd.concat([
-        map_df,
-        pd.DataFrame({
-            'Latitude': [selected_place_coords['Latitude']],
-            'Longitude': [selected_place_coords['Longitude']],
-            'Place_Name': [selected_place_name]
-        })
-    ])
+    if not pred_ratings:
+        return f"Tidak ada rekomendasi yang dapat diberikan untuk user {user_id}."
 
-map_df = map_df.dropna(subset=['Latitude', 'Longitude'])
+    sorted_ratings = sorted(pred_ratings, key=lambda x: x[1], reverse=True)
+    top_places = pd.DataFrame(sorted_ratings[:n_recommendations], columns=['Place_Id', 'Predicted_Rating'])
 
-if not map_df.empty:
-    st.subheader("Peta Lokasi Tempat Wisata")
-    st.map(map_df.rename(columns={'Latitude': 'lat', 'Longitude': 'lon'}))
-else:
-    st.write("Data koordinat lokasi tidak tersedia untuk peta.")
+    if 'Place_Id' in tour_df.columns:
+        rekomendasi = pd.merge(top_places, tour_df[['Place_Id', 'Place_Name', 'Category', 'Rating']], on='Place_Id', how='left')
+    else:
+        rekomendasi = top_places
+
+    return rekomendasi
+
+# ========== REKOMENDASI FINAL ==========
+def recommend_final(user_id, k=6, n_recommendations=5):
+    rekomendasi = recommend_places_optimized(user_id, k=k, n_recommendations=50)
+
+    if isinstance(rekomendasi, str):
+        return rekomendasi
+
+    user_rated = rating_df[rating_df['User_Id'] == str(user_id)]
+    favorite_categories = user_rated.merge(tour_df[['Place_Id', 'Category']], on='Place_Id')
+    favorite_category_counts = favorite_categories['Category'].value_counts()
+
+    if favorite_category_counts.empty:
+        final_recommendation = rekomendasi.head(n_recommendations)
+    else:
+        fav_cats = favorite_category_counts.index.tolist()
+        rekomendasi['Category_Fav'] = rekomendasi['Category'].apply(lambda x: x in fav_cats)
+        rekomendasi = rekomendasi.sort_values(by=['Category_Fav', 'Predicted_Rating'], ascending=[False, False])
+        final_recommendation = rekomendasi.head(n_recommendations)
+
+    return final_recommendation.reset_index(drop=True)
+
+# ========== EVALUASI ==========
+def evaluate_model(k=6):
+    y_true, y_pred = [], []
+    start_time = time.time()
+
+    def predict_row(row):
+        user_id, place_id, true_rating = row['User_Id'], row['Place_Id'], row['Place_Ratings']
+        pred_rating = predict_rating_fast(user_id, place_id)
+        return true_rating, pred_rating
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        results = list(tqdm(executor.map(predict_row, rating_df.to_dict('records')), total=len(rating_df), desc="Evaluasi Model"))
+
+    for true_rating, pred_rating in results:
+        if not np.isnan(pred_rating):
+            y_true.append(true_rating)
+            y_pred.append(pred_rating)
+
+    elapsed_time = (time.time() - start_time) * 1000
+    y_true = np.array(y_true)
+    y_pred = np.array(y_pred)
+
+    mae = np.mean(np.abs(y_true - y_pred))
+    rmse = np.sqrt(np.mean((y_true - y_pred) ** 2))
+
+    return mae, rmse, elapsed_time, y_true, y_pred
+
+# ========== CONTOH PENGGUNAAN ==========
+user_id = '2'
+hasil_rekomendasi = recommend_final(user_id=user_id, k=6, n_recommendations=5)
+print(f"\nRekomendasi final untuk User {user_id}:\n", hasil_rekomendasi)
+
+mae, rmse, waktu, y_true, y_pred = evaluate_model(k=6)
+print(f"\nEvaluasi Model (k=6):")
+print(f"MAE  = {mae:.4f}")
+print(f"RMSE = {rmse:.4f}")
+print(f"Waktu Prediksi = {waktu:.0f} ms")
+
+# ========== VISUALISASI ==========
+neighbors_list = [4, 6, 8]
+mae_list, rmse_list, time_list = [], [], []
+
+for k_val in neighbors_list:
+    top_k_neighbors = precompute_top_k_neighbors(item_similarity_filled, k=k_val)
+    mae_k, rmse_k, time_k, _, _ = evaluate_model(k=k_val)
+    mae_list.append(mae_k)
+    rmse_list.append(rmse_k)
+    time_list.append(time_k)
+
+plt.figure(figsize=(14, 5))
+
+plt.subplot(1, 3, 1)
+plt.plot(neighbors_list, mae_list, marker='o', label='MAE')
+plt.title('MAE vs Jumlah Tetangga')
+plt.xlabel('Top N Neighbors')
+plt.ylabel('MAE')
+plt.grid(True)
+
+plt.subplot(1, 3, 2)
+plt.plot(neighbors_list, rmse_list, marker='s', color='green', label='RMSE')
+plt.title('RMSE vs Jumlah Tetangga')
+plt.xlabel('Top N Neighbors')
+plt.ylabel('RMSE')
+plt.grid(True)
+
+plt.subplot(1, 3, 3)
+plt.plot(neighbors_list, time_list, marker='^', color='orange', label='Waktu')
+plt.title('Waktu Prediksi vs Top N')
+plt.xlabel('Top N Neighbors')
+plt.ylabel('Waktu (ms)')
+plt.grid(True)
+
+plt.tight_layout()
+plt.show()
+
+# === VISUALISASI TAMBAHAN ===
+
+# 1. Distribusi Rating Aktual vs Prediksi
+plt.figure(figsize=(10,6))
+sns.kdeplot(y_true, label='Rating Aktual', shade=True)
+sns.kdeplot(y_pred, label='Rating Prediksi', shade=True)
+plt.title('Distribusi Rating Aktual vs Prediksi')
+plt.xlabel('Rating')
+plt.legend()
+plt.show()
+
+# 2. Heatmap Cosine Similarity Top N Item
+top_n = 20
+plt.figure(figsize=(12,10))
+sns.heatmap(cosine_sim_matrix.iloc[:top_n, :top_n], cmap='coolwarm', annot=False)
+plt.title(f'Heatmap Cosine Similarity Antar Top {top_n} Tempat Wisata')
+plt.show()
+
+# 3. Distribusi Jumlah Rating per User & per Item
+plt.figure(figsize=(12,5))
+
+plt.subplot(1,2,1)
+rating_counts_user = rating_df['User_Id'].value_counts()
+sns.histplot(rating_counts_user, bins=30, kde=True)
+plt.title('Distribusi Jumlah Rating per User')
+plt.xlabel('Jumlah Rating')
+plt.ylabel('Jumlah User')
+
+plt.subplot(1,2,2)
+rating_counts_place = rating_df['Place_Id'].value_counts()
+sns.histplot(rating_counts_place, bins=30, kde=True, color='orange')
+plt.title('Distribusi Jumlah Rating per Tempat Wisata')
+plt.xlabel('Jumlah Rating')
+plt.ylabel('Jumlah Tempat')
+
+plt.tight_layout()
+plt.show()
+
+# 4. Scatter Plot Rating Prediksi vs Aktual
+plt.figure(figsize=(8,6))
+plt.scatter(y_true, y_pred, alpha=0.5)
+plt.plot([min(y_true), max(y_true)], [min(y_true), max(y_true)], 'r--')
+plt.xlabel('Rating Aktual')
+plt.ylabel('Rating Prediksi')
+plt.title('Scatter Plot Rating Prediksi vs Aktual')
+plt.show()
+
+# 5. Bar Plot Kategori Wisata Favorit dari Rekomendasi User
+if not isinstance(hasil
