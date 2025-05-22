@@ -1,12 +1,11 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+import time
 from sklearn.metrics.pairwise import cosine_similarity
 from heapq import nlargest
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
-import time
 
 # ---------- LOAD DATASET ----------
 @st.cache_data(show_spinner=True)
@@ -17,7 +16,6 @@ def load_data():
     tour_df = pd.read_csv(csv_url_tour, dtype=str)
     rating_df = pd.read_csv(csv_url_rating, dtype=str)
     
-    # Bersihkan data
     tour_df = tour_df.apply(lambda col: col.str.strip() if col.dtype == 'object' else col)
     rating_df = rating_df.apply(lambda col: col.str.strip() if col.dtype == 'object' else col)
     
@@ -30,7 +28,6 @@ def load_data():
     rating_df.drop_duplicates(inplace=True)
     tour_df.dropna(subset=['Place_Name'], inplace=True)
     
-    # Pastikan lat & lon ada dan bertipe float
     tour_df['Latitude'] = pd.to_numeric(tour_df['Latitude'], errors='coerce')
     tour_df['Longitude'] = pd.to_numeric(tour_df['Longitude'], errors='coerce')
     
@@ -40,12 +37,12 @@ def load_data():
 @st.cache_data(show_spinner=False)
 def prepare_data(tour_df, rating_df):
     user_item_matrix = rating_df.pivot_table(index='User_Id', columns='Place_Id', values='Place_Ratings')
-    user_item_filled = user_item_matrix.fillna(0)
+    user_item_matrix = user_item_matrix.fillna(0)
     item_similarity = user_item_matrix.corr(method='pearson')
-    item_similarity_filled = item_similarity.fillna(0)
-    mean_ratings_dict = user_item_matrix.mean().to_dict()
+    item_similarity = item_similarity.fillna(0)
+    mean_ratings_dict = user_item_matrix.replace(0, np.NaN).mean().to_dict()
     
-    return user_item_matrix, item_similarity_filled, mean_ratings_dict, tour_df, rating_df
+    return user_item_matrix, item_similarity, mean_ratings_dict, tour_df, rating_df
 
 def precompute_top_k_neighbors(item_similarity, k=6):
     top_k_neighbors_dict = {}
@@ -68,7 +65,7 @@ def predict_rating_fast(user_id, place_id, user_item_matrix, mean_ratings_dict, 
         return np.nan
 
     mean_target = mean_ratings_dict.get(place_id, 0)
-    mean_neighbors = user_item_matrix[list(rated_neighbors.keys())].mean()
+    mean_neighbors = user_item_matrix[list(rated_neighbors.keys())].replace(0, np.NaN).mean()
 
     adjusted_ratings = user_ratings[list(rated_neighbors.keys())] - mean_neighbors
     sim_scores = np.array(list(rated_neighbors.values()))
@@ -91,6 +88,8 @@ def evaluate_model(user_item_matrix, rating_df, mean_ratings_dict, top_k_neighbo
         pred_rating = predict_rating_fast(user_id, place_id, user_item_matrix, mean_ratings_dict, top_k_neighbors)
         return true_rating, pred_rating
 
+    from tqdm import tqdm
+    from concurrent.futures import ThreadPoolExecutor
     with ThreadPoolExecutor(max_workers=8) as executor:
         results = list(tqdm(executor.map(predict_row, rating_df.to_dict('records')), total=len(rating_df), desc="Evaluasi Model"))
 
@@ -128,12 +127,11 @@ k = st.sidebar.slider("Pilih nilai k (jumlah tetangga):", 2, 10, 6)
 
 top_k_neighbors = precompute_top_k_neighbors(item_similarity_filled, k=k)
 
-st.header("Evaluasi Model")
-if st.button("Evaluasi dan Visualisasi"):
-    mae, rmse, waktu = evaluate_model(user_item_matrix, rating_df, mean_ratings_dict, top_k_neighbors)
-    st.write(f"MAE: {mae:.4f}")
-    st.write(f"RMSE: {rmse:.4f}")
-    st.write(f"Waktu Prediksi: {waktu:.2f} ms")
+# Hitung evaluasi model sekali dan cache
+@st.cache_data
+def cached_evaluate():
+    return evaluate_model(user_item_matrix, rating_df, mean_ratings_dict, top_k_neighbors)
+mae, rmse, waktu = cached_evaluate()
 
 st.header("Rekomendasi Tempat Wisata")
 
@@ -149,6 +147,13 @@ recommended_places = recommend_places(selected_place_id, top_k_neighbors, tour_d
 st.subheader(f"Rekomendasi tempat mirip dengan {selected_place_name}:")
 for idx, row in recommended_places.iterrows():
     st.markdown(f"**{row['Place_Name']}**")
+
+# Tampilkan hasil evaluasi model di bawah rekomendasi
+st.markdown("---")
+st.subheader("Evaluasi Model")
+st.write(f"MAE: {mae:.4f}")
+st.write(f"RMSE: {rmse:.4f}")
+st.write(f"Waktu Prediksi: {waktu:.2f} ms")
 
 # Tampilkan map dengan lokasi wisata yang direkomendasikan dan tempat yang dipilih
 map_df = recommended_places[['Latitude', 'Longitude', 'Place_Name']].copy()
@@ -166,7 +171,6 @@ if not selected_place_coords.empty:
         })
     ])
 
-# Hilangkan baris tanpa koordinat valid
 map_df = map_df.dropna(subset=['Latitude', 'Longitude'])
 
 if not map_df.empty:
@@ -174,4 +178,3 @@ if not map_df.empty:
     st.map(map_df.rename(columns={'Latitude': 'lat', 'Longitude': 'lon'}))
 else:
     st.write("Data koordinat lokasi tidak tersedia untuk peta.")
-
