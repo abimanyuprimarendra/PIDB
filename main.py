@@ -1,116 +1,161 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from sklearn.metrics import mean_absolute_error, mean_squared_error
 import matplotlib.pyplot as plt
-import gdown
+from sklearn.metrics.pairwise import cosine_similarity
+from heapq import nlargest
+from concurrent.futures import ThreadPoolExecutor
+from tqdm import tqdm
+import time
 
-@st.cache_data
+# ---------- LOAD DATASET ----------
+@st.cache_data(show_spinner=True)
 def load_data():
-    url_tour = "https://drive.google.com/uc?id=1toXFdx4bIbDevyPSmEdbs2gG3PR9iYI-"
-    url_rating = "https://drive.google.com/uc?id=1NUbzdY_ZNVI2Gc9avZaTvQNT6gp5tc4y"
+    csv_url_tour = "https://drive.google.com/uc?id=1toXFdx4bIbDevyPSmEdbs2gG3PR9iYI-"
+    csv_url_rating = "https://drive.google.com/uc?id=1NUbzdY_ZNVI2Gc9avZaTvQNT6gp5tc4y"
 
-    # Download dulu file-nya
-    gdown.download(url_tour, 'tour.csv', quiet=False)
-    gdown.download(url_rating, 'rating.csv', quiet=False)
-
-    # Lalu baca dari file lokal
-    tour_df = pd.read_csv('tour.csv')
-    rating_df = pd.read_csv('rating.csv')
-
-    tour_df.dropna(inplace=True)
-    rating_df.dropna(inplace=True)
-    tour_df.drop_duplicates(inplace=True)
+    tour_df = pd.read_csv(csv_url_tour, dtype=str)
+    rating_df = pd.read_csv(csv_url_rating, dtype=str)
+    
+    # Bersihkan data
+    tour_df = tour_df.apply(lambda col: col.str.strip() if col.dtype == 'object' else col)
+    rating_df = rating_df.apply(lambda col: col.str.strip() if col.dtype == 'object' else col)
+    
+    rating_df['User_Id'] = rating_df['User_Id'].astype(float).astype(int).astype(str)
+    rating_df['Place_Id'] = rating_df['Place_Id'].astype(float).astype(int).astype(str)
+    tour_df['Place_Id'] = tour_df['Place_Id'].astype(float).astype(int).astype(str)
+    
+    rating_df['Place_Ratings'] = pd.to_numeric(rating_df['Place_Ratings'], errors='coerce')
+    rating_df.dropna(subset=['User_Id', 'Place_Id', 'Place_Ratings'], inplace=True)
     rating_df.drop_duplicates(inplace=True)
+    tour_df.dropna(subset=['Place_Name'], inplace=True)
+    
+    return tour_df, rating_df
 
-    merged_df = pd.merge(rating_df, tour_df, on='Place_Id', how='inner')
-    return tour_df, rating_df, merged_df
+# ---------- PREPARASI DATA & METODE PREDIKSI ----------
+@st.cache_data(show_spinner=False)
+def prepare_data(tour_df, rating_df):
+    user_item_matrix = rating_df.pivot_table(index='User_Id', columns='Place_Id', values='Place_Ratings')
+    user_item_filled = user_item_matrix.fillna(0)
+    cosine_sim_matrix = pd.DataFrame(
+        cosine_similarity(user_item_filled.T),
+        index=user_item_matrix.columns,
+        columns=user_item_matrix.columns
+    )
+    item_similarity = user_item_matrix.corr(method='pearson')
+    item_similarity_filled = item_similarity.fillna(0)
+    mean_ratings_dict = user_item_matrix.mean().to_dict()
+    
+    return user_item_matrix, item_similarity_filled, mean_ratings_dict, tour_df, rating_df
 
-tour_df, rating_df, merged_df = load_data()
+def precompute_top_k_neighbors(item_similarity, k=6):
+    top_k_neighbors_dict = {}
+    for place in item_similarity.columns:
+        sim_scores = item_similarity[place]
+        filtered_sim = sim_scores[sim_scores > 0]
+        top_k = nlargest(k, filtered_sim.items(), key=lambda x: x[1])
+        top_k_neighbors_dict[place] = dict(top_k)
+    return top_k_neighbors_dict
 
-# Prepare data for IBCF
-df_ibcf = merged_df[['User_Id', 'Place_Name', 'Place_Ratings']]
-user_item_matrix = df_ibcf.pivot_table(index='User_Id', columns='Place_Name', values='Place_Ratings')
-user_mean = user_item_matrix.mean(axis=1)
-user_item_matrix_centered = user_item_matrix.sub(user_mean, axis=0)
-item_similarity = user_item_matrix_centered.corr(method='pearson', min_periods=2)
+def predict_rating_fast(user_id, place_id, user_item_matrix, mean_ratings_dict, top_k_neighbors):
+    if place_id not in user_item_matrix.columns or user_id not in user_item_matrix.index:
+        return np.nan
 
-def predict_rating(user_id, item_name, k=6):
-    if item_name not in item_similarity.columns:
-        return user_item_matrix.stack().mean()
-    if user_id not in user_item_matrix.index:
-        return user_item_matrix[item_name].mean()
     user_ratings = user_item_matrix.loc[user_id]
-    rated_items = user_ratings.dropna()
-    similarities = item_similarity[item_name][rated_items.index].dropna()
-    top_k = similarities.sort_values(ascending=False).head(k)
-    if top_k.empty:
-        return user_ratings.mean()
-    top_k_ratings = rated_items[top_k.index]
-    numerator = np.dot(top_k.values, top_k_ratings.values)
-    denominator = np.sum(np.abs(top_k.values))
+    neighbors = top_k_neighbors.get(place_id, {})
+    rated_neighbors = {item: sim for item, sim in neighbors.items() if not np.isnan(user_ratings.get(item, np.nan))}
+
+    if len(rated_neighbors) == 0:
+        return np.nan
+
+    mean_target = mean_ratings_dict.get(place_id, 0)
+    mean_neighbors = user_item_matrix[list(rated_neighbors.keys())].mean()
+
+    adjusted_ratings = user_ratings[list(rated_neighbors.keys())] - mean_neighbors
+    sim_scores = np.array(list(rated_neighbors.values()))
+
+    numerator = np.dot(adjusted_ratings, sim_scores)
+    denominator = np.sum(np.abs(sim_scores))
+
     if denominator == 0:
-        return user_ratings.mean()
-    return numerator / denominator
+        return np.nan
 
-def evaluate_model(k=6):
-    preds = []
-    for idx, row in df_ibcf.iterrows():
-        user = row['User_Id']
-        place = row['Place_Name']
-        actual = row['Place_Ratings']
-        pred = predict_rating(user, place, k)
-        if not np.isnan(pred):
-            preds.append((actual, pred))
-    actual_ratings = [x[0] for x in preds]
-    predicted_ratings = [x[1] for x in preds]
-    mae = mean_absolute_error(actual_ratings, predicted_ratings)
-    rmse = np.sqrt(mean_squared_error(actual_ratings, predicted_ratings))
-    return mae, rmse
+    pred_rating = mean_target + (numerator / denominator)
+    return pred_rating
 
-# Streamlit App
-st.title("Hybrid Recommender System - Wisata Jogja (Drive Dataset)")
+def evaluate_model(user_item_matrix, rating_df, mean_ratings_dict, top_k_neighbors):
+    y_true, y_pred = [], []
+    start_time = time.time()
 
-user_list = user_item_matrix.index.tolist()
-selected_user = st.selectbox("Pilih User ID:", user_list)
+    def predict_row(row):
+        user_id, place_id, true_rating = row['User_Id'], row['Place_Id'], row['Place_Ratings']
+        pred_rating = predict_rating_fast(user_id, place_id, user_item_matrix, mean_ratings_dict, top_k_neighbors)
+        return true_rating, pred_rating
 
-if selected_user:
-    st.subheader("Riwayat Rating User")
-    user_ratings = user_item_matrix.loc[selected_user].dropna()
-    st.table(user_ratings.reset_index().rename(columns={selected_user:'Rating'}))
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        results = list(tqdm(executor.map(predict_row, rating_df.to_dict('records')), total=len(rating_df), desc="Evaluasi Model"))
 
-    unrated_places = user_item_matrix.loc[selected_user][user_item_matrix.loc[selected_user].isna()].index
-    recommendations = []
-    for place in unrated_places:
-        pred = predict_rating(selected_user, place)
-        recommendations.append((place, round(pred,2)))
-    recommendations.sort(key=lambda x: x[1], reverse=True)
-    top_n = 5
-    st.subheader(f"Rekomendasi Top {top_n} Tempat Wisata untuk User {selected_user}")
-    for place, rating in recommendations[:top_n]:
-        st.write(f"**{place}** - Prediksi Rating: {rating}")
+    for true_rating, pred_rating in results:
+        if not np.isnan(pred_rating):
+            y_true.append(true_rating)
+            y_pred.append(pred_rating)
 
-    mae, rmse = evaluate_model(k=6)
-    st.subheader("Evaluasi Model (k=6)")
-    st.write(f"MAE: {mae:.4f}")
-    st.write(f"RMSE: {rmse:.4f}")
+    elapsed_time = (time.time() - start_time) * 1000
+    y_true = np.array(y_true)
+    y_pred = np.array(y_pred)
 
-    # Plot perbandingan
-    preds = []
-    for idx, row in df_ibcf.iterrows():
-        user = row['User_Id']
-        place = row['Place_Name']
-        actual = row['Place_Ratings']
-        pred = predict_rating(user, place, k=6)
-        if not np.isnan(pred):
-            preds.append((actual, pred))
-    actual_ratings = [x[0] for x in preds]
-    predicted_ratings = [x[1] for x in preds]
+    mae = np.mean(np.abs(y_true - y_pred))
+    rmse = np.sqrt(np.mean((y_true - y_pred) ** 2))
 
-    fig, ax = plt.subplots()
-    ax.scatter(actual_ratings, predicted_ratings, alpha=0.4)
-    ax.plot([1, 5], [1, 5], 'r--')
-    ax.set_xlabel('Rating Asli')
-    ax.set_ylabel('Rating Prediksi')
-    ax.set_title('Perbandingan Rating Asli vs Prediksi')
+    return mae, rmse, elapsed_time
+
+# ========== STREAMLIT UI ==========
+
+st.title("Sistem Rekomendasi Tempat Wisata Yogyakarta")
+
+with st.spinner('Loading data...'):
+    tour_df, rating_df = load_data()
+    user_item_matrix, item_similarity_filled, mean_ratings_dict, tour_df, rating_df = prepare_data(tour_df, rating_df)
+
+k_values = st.sidebar.multiselect("Pilih nilai k (jumlah tetangga):", options=[2, 4, 6, 8, 10], default=[4, 6, 8])
+
+if st.button("Evaluasi Model dan Visualisasi"):
+    mae_list, rmse_list, time_list = [], [], []
+    
+    for k in k_values:
+        top_k_neighbors = precompute_top_k_neighbors(item_similarity_filled, k=k)
+        mae, rmse, waktu = evaluate_model(user_item_matrix, rating_df, mean_ratings_dict, top_k_neighbors)
+        mae_list.append(mae)
+        rmse_list.append(rmse)
+        time_list.append(waktu)
+    
+    # Plot visualisasi
+    fig, axs = plt.subplots(1, 3, figsize=(18, 5))
+    
+    axs[0].plot(k_values, mae_list, marker='o', color='blue')
+    axs[0].set_title("MAE vs Jumlah Tetangga (k)")
+    axs[0].set_xlabel("Jumlah Tetangga (k)")
+    axs[0].set_ylabel("MAE")
+    axs[0].grid(True)
+    
+    axs[1].plot(k_values, rmse_list, marker='s', color='green')
+    axs[1].set_title("RMSE vs Jumlah Tetangga (k)")
+    axs[1].set_xlabel("Jumlah Tetangga (k)")
+    axs[1].set_ylabel("RMSE")
+    axs[1].grid(True)
+    
+    axs[2].plot(k_values, time_list, marker='^', color='orange')
+    axs[2].set_title("Waktu Prediksi (ms) vs Jumlah Tetangga (k)")
+    axs[2].set_xlabel("Jumlah Tetangga (k)")
+    axs[2].set_ylabel("Waktu Prediksi (ms)")
+    axs[2].grid(True)
+    
     st.pyplot(fig)
+    
+    eval_df = pd.DataFrame({
+        'Jumlah Tetangga (k)': k_values,
+        'MAE': mae_list,
+        'RMSE': rmse_list,
+        'Waktu Prediksi (ms)': time_list
+    })
+    st.dataframe(eval_df)
