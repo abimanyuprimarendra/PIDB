@@ -34,10 +34,14 @@ def load_data():
 # ---------- PREPARASI DATA & METODE PREDIKSI ----------
 @st.cache_data(show_spinner=False)
 def prepare_data(tour_df, rating_df):
-    user_item_matrix = rating_df.pivot_table(index='User_Id', columns='Place_Id', values='Place_Ratings').fillna(0)
-    item_similarity = user_item_matrix.corr(method='pearson').fillna(0)
+    user_item_matrix = rating_df.pivot_table(index='User_Id', columns='Place_Id', values='Place_Ratings')
+    user_item_matrix = user_item_matrix.fillna(0)
+    item_similarity = user_item_matrix.corr(method='pearson')
+    item_similarity = item_similarity.fillna(0)
     mean_ratings_dict = user_item_matrix.replace(0, np.nan).mean().to_dict()
+    
     return user_item_matrix, item_similarity, mean_ratings_dict, tour_df, rating_df
+
 
 def precompute_top_k_neighbors(item_similarity, k=6):
     top_k_neighbors_dict = {}
