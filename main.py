@@ -8,50 +8,50 @@ from heapq import nlargest
 from concurrent.futures import ThreadPoolExecutor
 import streamlit as st
 
+# ========== LOAD DATA FUNCTION ==========
+def load_data():
+    csv_url_tour = "https://drive.google.com/uc?id=1toXFdx4bIbDevyPSmEdbs2gG3PR9iYI-"
+    csv_url_rating = "https://drive.google.com/uc?id=1NUbzdY_ZNVI2Gc9avZaTvQNT6gp5tc4y"
+
+    tour_df = pd.read_csv(csv_url_tour, dtype=str)
+    rating_df = pd.read_csv(csv_url_rating, dtype=str)
+
+    # Bersihkan spasi di kolom string
+    tour_df = tour_df.apply(lambda col: col.str.strip() if col.dtype == 'object' else col)
+    rating_df = rating_df.apply(lambda col: col.str.strip() if col.dtype == 'object' else col)
+
+    # Konversi tipe data untuk ID agar konsisten
+    rating_df['User_Id'] = rating_df['User_Id'].astype(float).astype(int).astype(str)
+    rating_df['Place_Id'] = rating_df['Place_Id'].astype(float).astype(int).astype(str)
+    tour_df['Place_Id'] = tour_df['Place_Id'].astype(float).astype(int).astype(str)
+
+    rating_df['Place_Ratings'] = pd.to_numeric(rating_df['Place_Ratings'], errors='coerce')
+
+    # Hapus data yang kosong dan duplikat
+    rating_df.dropna(subset=['User_Id', 'Place_Id', 'Place_Ratings'], inplace=True)
+    rating_df.drop_duplicates(inplace=True)
+    tour_df.dropna(subset=['Place_Name'], inplace=True)
+
+    return tour_df, rating_df
+
 # ========== DATA LOADING ==========
-tour_df = pd.read_csv(
-    '/content/drive/MyDrive/Semester 6/PIDB JURNAL NON REG SCIENTIST/DATASET PARIWISATA YOGYAKARTA/Dataset Wisata Jogja.csv',
-    dtype=str,
-    thousands='.'
-)
+tour_df, rating_df = load_data()
 
-rating_df = pd.read_csv(
-    '/content/drive/MyDrive/Semester 6/PIDB JURNAL NON REG SCIENTIST/DATASET PARIWISATA YOGYAKARTA/Dataset Rating Wisata Jogja.csv',
-    dtype=str
-)
-
-# ========== DATA CLEANING ==========
-tour_df = tour_df.apply(lambda col: col.str.strip() if col.dtype == 'object' else col)
-rating_df = rating_df.apply(lambda col: col.str.strip() if col.dtype == 'object' else col)
-
-rating_df['User_Id'] = rating_df['User_Id'].astype(float).astype(int).astype(str)
-rating_df['Place_Id'] = rating_df['Place_Id'].astype(float).astype(int).astype(str)
-tour_df['Place_Id'] = tour_df['Place_Id'].astype(float).astype(int).astype(str)
-
-rating_df['Place_Ratings'] = pd.to_numeric(rating_df['Place_Ratings'], errors='coerce')
-rating_df.dropna(subset=['User_Id', 'Place_Id', 'Place_Ratings'], inplace=True)
-rating_df.drop_duplicates(inplace=True)
-tour_df.dropna(subset=['Place_Name'], inplace=True)
-
-# ========== USER-ITEM MATRIX ==========
+# ========== DATA PREPARATION ==========
 user_item_matrix = rating_df.pivot_table(index='User_Id', columns='Place_Id', values='Place_Ratings')
-
-# ========== COSINE SIMILARITY MATRIX ==========
 user_item_filled = user_item_matrix.fillna(0)
+
 cosine_sim_matrix = pd.DataFrame(
     cosine_similarity(user_item_filled.T),
     index=user_item_matrix.columns,
     columns=user_item_matrix.columns
 )
 
-# ========== ITEM SIMILARITY (PEARSON) UNTUK PREDIKSI ==========
 item_similarity = user_item_matrix.corr(method='pearson')
 item_similarity_filled = item_similarity.fillna(0)
 
-# ========== CACHE DATA ==========
 mean_ratings_dict = user_item_matrix.mean().to_dict()
 
-# ========== PRECOMPUTE TOP-K NEIGHBORS ==========
 def precompute_top_k_neighbors(item_similarity, k=6):
     top_k_neighbors_dict = {}
     for place in item_similarity.columns:
@@ -63,7 +63,6 @@ def precompute_top_k_neighbors(item_similarity, k=6):
 
 top_k_neighbors = precompute_top_k_neighbors(item_similarity_filled, k=6)
 
-# ========== PREDIKSI RATING ==========
 def predict_rating_fast(user_id, place_id):
     if place_id not in user_item_matrix.columns or user_id not in user_item_matrix.index:
         return np.nan
@@ -90,7 +89,6 @@ def predict_rating_fast(user_id, place_id):
     pred_rating = mean_target + (numerator / denominator)
     return pred_rating
 
-# ========== REKOMENDASI ==========
 def recommend_places_optimized(user_id, k=6, n_recommendations=5):
     user_id = str(user_id).strip()
     if user_id not in user_item_matrix.index:
@@ -117,7 +115,6 @@ def recommend_places_optimized(user_id, k=6, n_recommendations=5):
 
     return rekomendasi
 
-# ========== REKOMENDASI FINAL ==========
 def recommend_final(user_id, k=6, n_recommendations=5):
     rekomendasi = recommend_places_optimized(user_id, k=k, n_recommendations=50)
 
@@ -138,7 +135,6 @@ def recommend_final(user_id, k=6, n_recommendations=5):
 
     return final_recommendation.reset_index(drop=True)
 
-# ========== REKOMENDASI MIRIP BERDASARKAN TEMPAT ==========
 def recommend_similar_place(place_id, n=5):
     if place_id not in item_similarity.columns:
         return f"Tempat dengan ID {place_id} tidak ditemukan."
@@ -148,7 +144,6 @@ def recommend_similar_place(place_id, n=5):
     df_merged = pd.merge(df_similar, tour_df[['Place_Id', 'Place_Name', 'Category', 'Rating']], on='Place_Id', how='left')
     return df_merged
 
-# ========== EVALUASI ==========
 def evaluate_model(k=6):
     y_true, y_pred = [], []
     start_time = time.time()
@@ -178,7 +173,6 @@ def evaluate_model(k=6):
 # ========== STREAMLIT UI ==========
 st.title("📍 Rekomendasi Tempat Wisata Yogyakarta")
 
-# Pilihan User untuk rekomendasi berdasarkan user id
 user_id_input = st.text_input("Masukkan User ID untuk rekomendasi wisata:", value="2")
 if st.button("Dapatkan Rekomendasi"):
     rekom = recommend_final(user_id=user_id_input, k=6, n_recommendations=5)
@@ -189,7 +183,6 @@ if st.button("Dapatkan Rekomendasi"):
 
 st.markdown("---")
 
-# Pilihan wisata untuk eksplorasi tempat serupa
 st.subheader("🔍 Eksplorasi Tempat Serupa Berdasarkan Wisata")
 place_options = tour_df[['Place_Id', 'Place_Name']].drop_duplicates().sort_values('Place_Name')
 place_name_selected = st.selectbox("Pilih Tempat Wisata", place_options['Place_Name'].tolist())
@@ -202,7 +195,6 @@ if st.button("Lihat Tempat Serupa"):
 
 st.markdown("---")
 
-# Evaluasi Model dengan Top-K Variasi (visualisasi sederhana)
 neighbors_list = [4, 6, 8]
 mae_list, rmse_list, time_list = [], [], []
 
