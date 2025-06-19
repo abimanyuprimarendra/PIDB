@@ -107,7 +107,8 @@ if st.session_state["show_rekomendasi"]:
                 HTM: {row['htm_weekday']}<br>
                 Rating: {row['vote_average']}<br>
                 Skor Kemiripan: {row['similarity_score']:.2f}<br>
-                Koordinat: ({row['latitude']}, {row['longitude']})
+                Latitude: {row['latitude']}<br>
+                Longitude: {row['longitude']}
                 </div>
             """
             folium.Marker(
