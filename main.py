@@ -12,7 +12,7 @@ def clean_price(x):
 # Load data dari Google Drive (dengan direct CSV URL)
 @st.cache_data
 def load_data():
-    csv_url = 'https://drive.google.com/uc?id=1XAbCdEfGh12345'  # Ganti dengan ID milikmu
+    csv_url = 'https://drive.google.com/uc?id=120aPFDUC-CdY0mO1vsDuUt0mj8xM1WwN?hl'  # Ganti dengan ID milikmu
     df = pd.read_csv(csv_url)
 
     # 1. DATA CLEANING
