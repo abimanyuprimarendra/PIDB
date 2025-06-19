@@ -51,19 +51,33 @@ def get_recommendations(df, nama_wisata, top_n=5):
     similar = similarity_df[nama_wisata].sort_values(ascending=False).iloc[1:top_n+1]
     result_df = df[df['nama'].isin(similar.index)].copy()
     result_df['similarity_score'] = similar.values
-    return result_df[['nama', 'description', 'htm_weekday', 'htm_weekend', 'vote_average', 'latitude', 'longitude', 'similarity_score']]
+    return result_df[['nama', 'type', 'description', 'htm_weekday', 'htm_weekend', 'vote_average', 'latitude', 'longitude', 'similarity_score']]
 
 # UI Streamlit
 st.set_page_config(page_title="Rekomendasi Wisata Jogja", layout="wide")
 st.title('Rekomendasi Tempat Wisata di Yogyakarta')
 
 df = load_data_from_drive()
-nama_wisata_list = df['nama'].dropna().unique()
+
+# Filter kategori dan rating
+with st.sidebar:
+    st.header("Filter Tambahan")
+    kategori_unik = sorted(df['type'].dropna().unique())
+    kategori_pilihan = st.multiselect("Pilih kategori:", kategori_unik, default=kategori_unik)
+
+    min_rating = float(df['vote_average'].min())
+    max_rating = float(df['vote_average'].max())
+    rating_range = st.slider("Batas rating:", min_value=min_rating, max_value=max_rating, value=(min_rating, max_rating))
+
+# Terapkan filter
+df_filtered = df[df['type'].isin(kategori_pilihan) & df['vote_average'].between(rating_range[0], rating_range[1])]
+
+nama_wisata_list = df_filtered['nama'].dropna().unique()
 selected_wisata = st.selectbox("Pilih tempat wisata sebagai acuan:", nama_wisata_list)
 top_n = st.slider("Jumlah rekomendasi ditampilkan", 1, 10, 5)
 
 if st.button("Tampilkan Rekomendasi"):
-    rekomendasi_df = get_recommendations(df, selected_wisata, top_n)
+    rekomendasi_df = get_recommendations(df_filtered, selected_wisata, top_n)
 
     if not rekomendasi_df.empty:
         st.subheader(f"Tempat wisata mirip dengan **{selected_wisata}**:")
@@ -71,11 +85,12 @@ if st.button("Tampilkan Rekomendasi"):
         rekomendasi_df['htm_weekday'] = rekomendasi_df['htm_weekday'].apply(lambda x: f"Rp {int(x):,}".replace(",", "."))
         rekomendasi_df['htm_weekend'] = rekomendasi_df['htm_weekend'].apply(lambda x: f"Rp {int(x):,}".replace(",", "."))
 
-        st.table(
-            rekomendasi_df[['nama', 'htm_weekday', 'htm_weekend', 'vote_average', 'similarity_score']]
+        st.dataframe(
+            rekomendasi_df[['nama', 'type', 'htm_weekday', 'htm_weekend', 'vote_average', 'similarity_score']]
             .sort_values(by='similarity_score', ascending=False)
             .rename(columns={
                 'nama': 'Nama Wisata',
+                'type': 'Kategori',
                 'htm_weekday': 'HTM Weekday',
                 'htm_weekend': 'HTM Weekend',
                 'vote_average': 'Rating',
@@ -84,14 +99,15 @@ if st.button("Tampilkan Rekomendasi"):
             .style.format({'Skor Kemiripan': '{:.2f}', 'Rating': '{:.1f}'})
         )
 
-        st.subheader("Lokasi Rekomendasi di Peta")
+        st.subheader("Peta Lokasi Rekomendasi")
 
+        # Pydeck map
         layer = pdk.Layer(
             "ScatterplotLayer",
             data=rekomendasi_df,
             get_position='[longitude, latitude]',
-            get_fill_color='[0, 100, 255, 160]',
-            get_radius=100,
+            get_fill_color='[30, 144, 255, 180]',
+            get_radius=200,
             pickable=True,
         )
 
@@ -103,18 +119,19 @@ if st.button("Tampilkan Rekomendasi"):
         )
 
         tooltip = {
-            "html": "<b>{nama}</b><br/>HTM: {htm_weekday}<br/>Rating: {vote_average}",
+            "html": "<b>{nama}</b><br/>Kategori: {type}<br/>Rating: {vote_average}<br/>HTM: {htm_weekday}",
             "style": {
-                "backgroundColor": "steelblue",
+                "backgroundColor": "#2c3e50",
                 "color": "white"
             }
         }
 
         st.pydeck_chart(pdk.Deck(
-            map_style="mapbox://styles/mapbox/light-v9",
+            map_style="mapbox://styles/mapbox/streets-v11",
             initial_view_state=view_state,
             layers=[layer],
-            tooltip=tooltip
+            tooltip=tooltip,
+            height=500
         ))
     else:
         st.warning("Tempat wisata tidak ditemukan atau tidak ada rekomendasi.")
