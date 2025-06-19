@@ -73,21 +73,26 @@ with st.sidebar:
 # Terapkan filter
 df_filtered = df[df['type'].isin(kategori_pilihan) & df['vote_average'].between(rating_range[0], rating_range[1])]
 
+# Input wisata
+st.session_state.setdefault("last_selected", None)
+
 nama_wisata_list = df_filtered['nama'].dropna().unique()
-selected_wisata = st.selectbox("Pilih tempat wisata sebagai acuan:", nama_wisata_list)
+selected_wisata = st.selectbox("Pilih tempat wisata sebagai acuan:", nama_wisata_list, index=0)
+
+# Reset otomatis jika wisata berubah
+if selected_wisata != st.session_state["last_selected"]:
+    st.session_state["show_rekomendasi"] = False
+    st.session_state["last_selected"] = selected_wisata
+
+st.session_state.setdefault("show_rekomendasi", False)
+
+# Slider dan tombol rekomendasi
 top_n = st.slider("Jumlah rekomendasi ditampilkan", 1, 10, 5)
 
-# Gunakan session_state untuk menyimpan status tombol
-def init_session():
-    if 'show_recommendation' not in st.session_state:
-        st.session_state['show_recommendation'] = False
-
-init_session()
-
 if st.button("Tampilkan Rekomendasi"):
-    st.session_state['show_recommendation'] = True
+    st.session_state["show_rekomendasi"] = True
 
-if st.session_state['show_recommendation']:
+if st.session_state["show_rekomendasi"]:
     rekomendasi_df = get_recommendations(df_filtered, selected_wisata, top_n)
 
     if not rekomendasi_df.empty:
@@ -97,7 +102,7 @@ if st.session_state['show_recommendation']:
         rekomendasi_df['htm_weekend'] = rekomendasi_df['htm_weekend'].apply(lambda x: f"Rp {int(x):,}".replace(",", "."))
 
         st.dataframe(
-            rekomendasi_df[['nama', 'type', 'htm_weekday', 'htm_weekend', 'vote_average', 'similarity_score']]
+            rekomendasi_df[['nama', 'type', 'htm_weekday', 'htm_weekend', 'vote_average', 'similarity_score', 'latitude', 'longitude']]
             .sort_values(by='similarity_score', ascending=False)
             .rename(columns={
                 'nama': 'Nama Wisata',
@@ -105,31 +110,32 @@ if st.session_state['show_recommendation']:
                 'htm_weekday': 'HTM Weekday',
                 'htm_weekend': 'HTM Weekend',
                 'vote_average': 'Rating',
-                'similarity_score': 'Skor Kemiripan'
+                'similarity_score': 'Skor Kemiripan',
+                'latitude': 'Latitude',
+                'longitude': 'Longitude'
             })
             .style.format({'Skor Kemiripan': '{:.2f}', 'Rating': '{:.1f}'})
         )
 
-        st.subheader("Peta Lokasi Rekomendasi (Leaflet)")
-
+        st.subheader("Peta Lokasi Rekomendasi")
         m = folium.Map(location=[rekomendasi_df['latitude'].mean(), rekomendasi_df['longitude'].mean()], zoom_start=12)
 
-        # Tempat acuan
-        acuan = df[df['nama'] == selected_wisata].iloc[0]
-        folium.Marker(
-            location=[acuan['latitude'], acuan['longitude']],
-            popup=f"<b>{acuan['nama']}</b><br>Kategori: {acuan['type']}<br>Rating: {acuan['vote_average']}",
-            icon=folium.Icon(color='red')
-        ).add_to(m)
-
-        # Marker rekomendasi
         for _, row in rekomendasi_df.iterrows():
+            popup_info = f"""
+                <div style='font-size: 12px'>
+                <b>{row['nama']}</b><br>
+                Kategori: {row['type']}<br>
+                HTM: {row['htm_weekday']}<br>
+                Rating: {row['vote_average']}<br>
+                Skor Kemiripan: {row['similarity_score']:.2f}<br>
+                Koordinat: ({row['latitude']}, {row['longitude']})
+                </div>
+            """
             folium.Marker(
                 location=[row['latitude'], row['longitude']],
-                popup=f"<b>{row['nama']}</b><br>Kategori: {row['type']}<br>Rating: {row['vote_average']}<br>HTM: {row['htm_weekday']}",
-                icon=folium.Icon(color='blue')
+                popup=folium.Popup(popup_info, max_width=250)
             ).add_to(m)
 
-        st_folium(m, height=500, width=900)
+        st_folium(m, width=700, height=500)
     else:
         st.warning("Tempat wisata tidak ditemukan atau tidak ada rekomendasi.")
