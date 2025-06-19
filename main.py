@@ -55,18 +55,18 @@ def get_recommendations(df, nama_wisata, top_n=5):
 
 # UI Streamlit
 st.set_page_config(page_title="Rekomendasi Wisata Jogja", layout="wide")
-st.title('📍 Rekomendasi Tempat Wisata di Yogyakarta')
+st.title('Rekomendasi Tempat Wisata di Yogyakarta')
 
 df = load_data_from_drive()
 nama_wisata_list = df['nama'].dropna().unique()
-selected_wisata = st.selectbox("🎯 Pilih tempat wisata sebagai acuan:", nama_wisata_list)
-top_n = st.slider("🔢 Jumlah rekomendasi ditampilkan", 1, 10, 5)
+selected_wisata = st.selectbox("Pilih tempat wisata sebagai acuan:", nama_wisata_list)
+top_n = st.slider("Jumlah rekomendasi ditampilkan", 1, 10, 5)
 
 if st.button("Tampilkan Rekomendasi"):
     rekomendasi_df = get_recommendations(df, selected_wisata, top_n)
 
     if not rekomendasi_df.empty:
-        st.subheader(f"✅ Tempat wisata mirip dengan **{selected_wisata}**:")
+        st.subheader(f"Tempat wisata mirip dengan **{selected_wisata}**:")
 
         # Format harga
         rekomendasi_df['htm_weekday'] = rekomendasi_df['htm_weekday'].apply(lambda x: f"Rp {int(x):,}".replace(",", "."))
@@ -87,7 +87,7 @@ if st.button("Tampilkan Rekomendasi"):
         )
 
         # Visualisasi Peta Pydeck
-        st.subheader("🗺️ Lokasi Rekomendasi di Peta")
+        st.subheader("Lokasi Rekomendasi di Peta")
 
         layer = pdk.Layer(
             "ScatterplotLayer",
@@ -120,4 +120,4 @@ if st.button("Tampilkan Rekomendasi"):
             tooltip=tooltip
         ))
     else:
-        st.warning("❌ Tempat wisata tidak ditemukan atau tidak ada rekomendasi.")
+        st.warning("Tempat wisata tidak ditemukan atau tidak ada rekomendasi.")
