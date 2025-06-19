@@ -52,7 +52,7 @@ def get_recommendations(df, nama_wisata, top_n=5):
     similar = similarity_df[nama_wisata].sort_values(ascending=False).iloc[1:top_n+1]
     result_df = df[df['nama'].isin(similar.index)].copy()
     result_df['similarity_score'] = similar.values
-    return result_df[['nama', 'type', 'description', 'htm_weekday', 'htm_weekend', 'vote_average', 'similarity_score']]
+    return result_df[['nama', 'type', 'description', 'htm_weekday', 'htm_weekend', 'vote_average', 'latitude', 'longitude', 'similarity_score']]
 
 # UI Streamlit
 st.set_page_config(page_title="Rekomendasi Wisata Jogja", layout="wide")
@@ -96,12 +96,13 @@ if st.session_state["show_rekomendasi"]:
     rekomendasi_df = get_recommendations(df_filtered, selected_wisata, top_n)
 
     if not rekomendasi_df.empty:
+        st.subheader("Tabel Rekomendasi Tempat Wisata")
+        st.dataframe(rekomendasi_df.drop(columns=['latitude', 'longitude']))
+
         st.subheader("Peta Lokasi Rekomendasi")
-        merged_df = pd.merge(rekomendasi_df, df_filtered[['nama', 'latitude', 'longitude']], on='nama', how='left')
+        m = folium.Map(location=[rekomendasi_df['latitude'].mean(), rekomendasi_df['longitude'].mean()], zoom_start=12)
 
-        m = folium.Map(location=[merged_df['latitude'].mean(), merged_df['longitude'].mean()], zoom_start=12)
-
-        for _, row in merged_df.iterrows():
+        for _, row in rekomendasi_df.iterrows():
             popup_info = f"""
                 <div style='font-size: 11px'>
                 <b>{row['nama']}</b><br>
@@ -109,7 +110,8 @@ if st.session_state["show_rekomendasi"]:
                 HTM: {row['htm_weekday']}<br>
                 Rating: {row['vote_average']}<br>
                 Skor Kemiripan: {row['similarity_score']:.2f}<br>
-                Koordinat: ({row['latitude']}, {row['longitude']})
+                Latitude: {row['latitude']}<br>
+                Longitude: {row['longitude']}
                 </div>
             """
             folium.Marker(
@@ -119,19 +121,5 @@ if st.session_state["show_rekomendasi"]:
             ).add_to(m)
 
         st_folium(m, width=700, height=500)
-
-        # Tabel informasi
-        st.subheader("Detail Rekomendasi")
-        st.dataframe(
-            rekomendasi_df.rename(columns={
-                'nama': 'Nama Wisata',
-                'type': 'Kategori',
-                'description': 'Deskripsi',
-                'htm_weekday': 'HTM Weekday',
-                'htm_weekend': 'HTM Weekend',
-                'vote_average': 'Rating',
-                'similarity_score': 'Skor Kemiripan'
-            })
-        )
     else:
         st.warning("Tempat wisata tidak ditemukan atau tidak ada rekomendasi.")
