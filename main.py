@@ -68,11 +68,9 @@ if st.button("Tampilkan Rekomendasi"):
     if not rekomendasi_df.empty:
         st.subheader(f"Tempat wisata mirip dengan **{selected_wisata}**:")
 
-        # Format harga
         rekomendasi_df['htm_weekday'] = rekomendasi_df['htm_weekday'].apply(lambda x: f"Rp {int(x):,}".replace(",", "."))
         rekomendasi_df['htm_weekend'] = rekomendasi_df['htm_weekend'].apply(lambda x: f"Rp {int(x):,}".replace(",", "."))
 
-        # Tabel rekomendasi
         st.table(
             rekomendasi_df[['nama', 'htm_weekday', 'htm_weekend', 'vote_average', 'similarity_score']]
             .sort_values(by='similarity_score', ascending=False)
@@ -86,7 +84,6 @@ if st.button("Tampilkan Rekomendasi"):
             .style.format({'Skor Kemiripan': '{:.2f}', 'Rating': '{:.1f}'})
         )
 
-        # Visualisasi Peta Pydeck
         st.subheader("Lokasi Rekomendasi di Peta")
 
         layer = pdk.Layer(
