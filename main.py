@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import gdown
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -9,11 +10,15 @@ def clean_price(x):
     if pd.isna(x): return np.nan
     return float(str(x).replace('Rp', '').replace('.', '').replace(',', '').strip())
 
-# Load data dari Google Drive (dengan direct CSV URL)
 @st.cache_data
 def load_data():
-    csv_url = 'https://drive.google.com/uc?id=120aPFDUC-CdY0mO1vsDuUt0mj8xM1WwN?hl'  # Ganti dengan ID milikmu
-    df = pd.read_csv(csv_url)
+    file_id = "120aPFDUC-CdY0mO1vsDuUt0mj8xM1WwN?hl"  
+    url = f"https://drive.google.com/uc?id={file_id}"
+
+    output = "data.csv"
+    gdown.download(url, output, quiet=False)
+
+    df = pd.read_csv(output)
 
     # 1. DATA CLEANING
     df.drop(columns=['image'], inplace=True, errors='ignore')
