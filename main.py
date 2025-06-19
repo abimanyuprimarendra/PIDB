@@ -11,14 +11,11 @@ def clean_price(x):
     return float(str(x).replace('Rp', '').replace('.', '').replace(',', '').strip())
 
 @st.cache_data
-def load_data():
-    file_id = "120aPFDUC-CdY0mO1vsDuUt0mj8xM1WwN?hl"  
-    url = f"https://drive.google.com/uc?id={file_id}"
+def load_data_from_drive():
+    csv_url = "https://drive.google.com/uc?id=1F4LiTAs79DDimrQgKCUi1HqHQ-HmIYEj"
+    data = pd.read_csv(csv_url)
+    return data
 
-    output = "data.csv"
-    gdown.download(url, output, quiet=False)
-
-    df = pd.read_csv(output)
 
     # 1. DATA CLEANING
     df.drop(columns=['image'], inplace=True, errors='ignore')
