@@ -77,14 +77,17 @@ nama_wisata_list = df_filtered['nama'].dropna().unique()
 selected_wisata = st.selectbox("Pilih tempat wisata sebagai acuan:", nama_wisata_list)
 top_n = st.slider("Jumlah rekomendasi ditampilkan", 1, 10, 5)
 
-# Gunakan session_state agar tetap menampilkan hasil setelah klik tombol
-if 'show_rekomendasi' not in st.session_state:
-    st.session_state.show_rekomendasi = False
+# Gunakan session_state untuk menyimpan status tombol
+def init_session():
+    if 'show_recommendation' not in st.session_state:
+        st.session_state['show_recommendation'] = False
+
+init_session()
 
 if st.button("Tampilkan Rekomendasi"):
-    st.session_state.show_rekomendasi = True
+    st.session_state['show_recommendation'] = True
 
-if st.session_state.show_rekomendasi:
+if st.session_state['show_recommendation']:
     rekomendasi_df = get_recommendations(df_filtered, selected_wisata, top_n)
 
     if not rekomendasi_df.empty:
@@ -107,16 +110,26 @@ if st.session_state.show_rekomendasi:
             .style.format({'Skor Kemiripan': '{:.2f}', 'Rating': '{:.1f}'})
         )
 
-        st.subheader("Peta Lokasi Rekomendasi")
+        st.subheader("Peta Lokasi Rekomendasi (Leaflet)")
 
-        # Peta dengan folium
         m = folium.Map(location=[rekomendasi_df['latitude'].mean(), rekomendasi_df['longitude'].mean()], zoom_start=12)
-        for idx, row in rekomendasi_df.iterrows():
+
+        # Tempat acuan
+        acuan = df[df['nama'] == selected_wisata].iloc[0]
+        folium.Marker(
+            location=[acuan['latitude'], acuan['longitude']],
+            popup=f"<b>{acuan['nama']}</b><br>Kategori: {acuan['type']}<br>Rating: {acuan['vote_average']}",
+            icon=folium.Icon(color='red')
+        ).add_to(m)
+
+        # Marker rekomendasi
+        for _, row in rekomendasi_df.iterrows():
             folium.Marker(
                 location=[row['latitude'], row['longitude']],
-                popup=folium.Popup(f"<b>{row['nama']}</b><br>Kategori: {row['type']}<br>Rating: {row['vote_average']}<br>HTM: {row['htm_weekday']}", max_width=250),
+                popup=f"<b>{row['nama']}</b><br>Kategori: {row['type']}<br>Rating: {row['vote_average']}<br>HTM: {row['htm_weekday']}",
+                icon=folium.Icon(color='blue')
             ).add_to(m)
 
-        st_folium(m, width=700, height=500)
+        st_folium(m, height=500, width=900)
     else:
         st.warning("Tempat wisata tidak ditemukan atau tidak ada rekomendasi.")
