@@ -59,8 +59,8 @@ def get_recommendations(df, nama_wisata, top_n=5):
     return similar.iloc[1:top_n+1]
 
 # Tampilan UI Streamlit
-st.title('📍 Rekomendasi Tempat Wisata di Yogyakarta')
-df = load_data()
+st.title('Rekomendasi Tempat Wisata di Yogyakarta')
+df = load_data_from_drive()
 
 nama_wisata_list = df['nama'].dropna().unique()
 selected_wisata = st.selectbox("Pilih tempat wisata:", nama_wisata_list)
