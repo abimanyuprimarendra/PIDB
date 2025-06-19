@@ -96,27 +96,6 @@ if st.session_state["show_rekomendasi"]:
     rekomendasi_df = get_recommendations(df_filtered, selected_wisata, top_n)
 
     if not rekomendasi_df.empty:
-        st.subheader(f"Tempat wisata mirip dengan **{selected_wisata}**:")
-
-        rekomendasi_df['htm_weekday'] = rekomendasi_df['htm_weekday'].apply(lambda x: f"Rp {int(x):,}".replace(",", "."))
-        rekomendasi_df['htm_weekend'] = rekomendasi_df['htm_weekend'].apply(lambda x: f"Rp {int(x):,}".replace(",", "."))
-
-        st.dataframe(
-            rekomendasi_df[['nama', 'type', 'htm_weekday', 'htm_weekend', 'vote_average', 'similarity_score', 'latitude', 'longitude']]
-            .sort_values(by='similarity_score', ascending=False)
-            .rename(columns={
-                'nama': 'Nama Wisata',
-                'type': 'Kategori',
-                'htm_weekday': 'HTM Weekday',
-                'htm_weekend': 'HTM Weekend',
-                'vote_average': 'Rating',
-                'similarity_score': 'Skor Kemiripan',
-                'latitude': 'Latitude',
-                'longitude': 'Longitude'
-            })
-            .style.format({'Skor Kemiripan': '{:.2f}', 'Rating': '{:.1f}'})
-        )
-
         st.subheader("Peta Lokasi Rekomendasi")
         m = folium.Map(location=[rekomendasi_df['latitude'].mean(), rekomendasi_df['longitude'].mean()], zoom_start=12)
 
