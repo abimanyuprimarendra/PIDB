@@ -78,47 +78,51 @@ selected_wisata = st.selectbox("Pilih tempat wisata sebagai acuan:", nama_wisata
 top_n = st.slider("Jumlah rekomendasi ditampilkan", 1, 10, 5)
 
 if st.button("Tampilkan Rekomendasi"):
+    if selected_wisata not in df_filtered['nama'].values:
+        st.warning("Tempat wisata tidak tersedia dalam hasil filter.")
+        st.stop()
+
     rekomendasi_df = get_recommendations(df_filtered, selected_wisata, top_n)
 
-    if not rekomendasi_df.empty:
-        st.subheader(f"Tempat wisata mirip dengan **{selected_wisata}**:")
+    if rekomendasi_df.empty:
+        st.warning("Tidak ada rekomendasi ditemukan untuk tempat tersebut.")
+        st.stop()
 
-        rekomendasi_df['htm_weekday'] = rekomendasi_df['htm_weekday'].apply(lambda x: f"Rp {int(x):,}".replace(",", "."))
-        rekomendasi_df['htm_weekend'] = rekomendasi_df['htm_weekend'].apply(lambda x: f"Rp {int(x):,}".replace(",", "."))
+    st.subheader(f"Tempat wisata mirip dengan **{selected_wisata}**:")
 
-        st.dataframe(
-            rekomendasi_df[['nama', 'type', 'htm_weekday', 'htm_weekend', 'vote_average', 'similarity_score']]
-            .sort_values(by='similarity_score', ascending=False)
-            .rename(columns={
-                'nama': 'Nama Wisata',
-                'type': 'Kategori',
-                'htm_weekday': 'HTM Weekday',
-                'htm_weekend': 'HTM Weekend',
-                'vote_average': 'Rating',
-                'similarity_score': 'Skor Kemiripan'
-            })
-            .style.format({'Skor Kemiripan': '{:.2f}', 'Rating': '{:.1f}'})
-        )
+    rekomendasi_df['htm_weekday'] = rekomendasi_df['htm_weekday'].apply(lambda x: f"Rp {int(x):,}".replace(",", "."))
+    rekomendasi_df['htm_weekend'] = rekomendasi_df['htm_weekend'].apply(lambda x: f"Rp {int(x):,}".replace(",", "."))
 
-        st.subheader("Peta Lokasi Rekomendasi")
+    st.dataframe(
+        rekomendasi_df[['nama', 'type', 'htm_weekday', 'htm_weekend', 'vote_average', 'similarity_score']]
+        .sort_values(by='similarity_score', ascending=False)
+        .rename(columns={
+            'nama': 'Nama Wisata',
+            'type': 'Kategori',
+            'htm_weekday': 'HTM Weekday',
+            'htm_weekend': 'HTM Weekend',
+            'vote_average': 'Rating',
+            'similarity_score': 'Skor Kemiripan'
+        })
+        .style.format({'Skor Kemiripan': '{:.2f}', 'Rating': '{:.1f}'})
+    )
 
-        map_center = [rekomendasi_df['latitude'].mean(), rekomendasi_df['longitude'].mean()]
-        m = folium.Map(location=map_center, zoom_start=12)
+    st.subheader("Peta Lokasi Rekomendasi")
 
-        for _, row in rekomendasi_df.iterrows():
-            popup_content = f"""
-            <b>{row['nama']}</b><br>
-            Kategori: {row['type']}<br>
-            HTM Weekday: {row['htm_weekday']}<br>
-            HTM Weekend: {row['htm_weekend']}<br>
-            Rating: {row['vote_average']}<br>
-            """
-            folium.Marker(
-                location=[row['latitude'], row['longitude']],
-                popup=folium.Popup(popup_content, max_width=250)
-            ).add_to(m)
+    # Filter data lokasi valid
+    rekomendasi_df = rekomendasi_df.dropna(subset=['latitude', 'longitude'])
+    map_center = [rekomendasi_df['latitude'].mean(), rekomendasi_df['longitude'].mean()]
+    m = folium.Map(location=map_center, zoom_start=12)
 
-        st_folium(m, width=800, height=500)
+    for _, row in rekomendasi_df.iterrows():
+        folium.Marker(
+            location=[row['latitude'], row['longitude']],
+            popup=folium.Popup(
+                f"<b>{row['nama']}</b><br>Kategori: {row['type']}<br>Rating: {row['vote_average']}<br>HTM: {row['htm_weekday']}",
+                max_width=300
+            )
+        ).add_to(m)
 
-    else:
-        st.warning("Tempat wisata tidak ditemukan atau tidak ada rekomendasi.")
+    st_folium(m, width=700, height=500)
+else:
+    st.info("Silakan pilih tempat dan klik tombol untuk melihat rekomendasi.")
