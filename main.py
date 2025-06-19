@@ -3,13 +3,13 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics.pairwise import cosine_similarity
+import pydeck as pdk
 
 # Fungsi membersihkan harga
 def clean_price(x):
     if pd.isna(x): return np.nan
     return float(str(x).replace('Rp', '').replace('.', '').replace(',', '').strip())
 
-# Load dan bersihkan data
 @st.cache_data
 def load_data_from_drive():
     csv_url = "https://drive.google.com/uc?id=1F4LiTAs79DDimrQgKCUi1HqHQ-HmIYEj"
@@ -37,7 +37,6 @@ def load_data_from_drive():
 
     return df
 
-# Fungsi rekomendasi
 def get_recommendations(df, nama_wisata, top_n=5):
     features = ['vote_average', 'vote_count', 'htm_weekday', 'htm_weekend']
     scaler = StandardScaler()
@@ -73,7 +72,7 @@ if st.button("Tampilkan Rekomendasi"):
         rekomendasi_df['htm_weekday'] = rekomendasi_df['htm_weekday'].apply(lambda x: f"Rp {int(x):,}".replace(",", "."))
         rekomendasi_df['htm_weekend'] = rekomendasi_df['htm_weekend'].apply(lambda x: f"Rp {int(x):,}".replace(",", "."))
 
-        # Tampilkan tabel rapi
+        # Tabel rekomendasi
         st.table(
             rekomendasi_df[['nama', 'htm_weekday', 'htm_weekend', 'vote_average', 'similarity_score']]
             .sort_values(by='similarity_score', ascending=False)
@@ -87,8 +86,38 @@ if st.button("Tampilkan Rekomendasi"):
             .style.format({'Skor Kemiripan': '{:.2f}', 'Rating': '{:.1f}'})
         )
 
-        # Peta
-        st.subheader("🗺️ Lokasi Tempat Wisata")
-        st.map(rekomendasi_df[['latitude', 'longitude']])
+        # Visualisasi Peta Pydeck
+        st.subheader("🗺️ Lokasi Rekomendasi di Peta")
+
+        layer = pdk.Layer(
+            "ScatterplotLayer",
+            data=rekomendasi_df,
+            get_position='[longitude, latitude]',
+            get_fill_color='[0, 100, 255, 160]',
+            get_radius=100,
+            pickable=True,
+        )
+
+        view_state = pdk.ViewState(
+            latitude=rekomendasi_df['latitude'].mean(),
+            longitude=rekomendasi_df['longitude'].mean(),
+            zoom=11,
+            pitch=0
+        )
+
+        tooltip = {
+            "html": "<b>{nama}</b><br/>HTM: {htm_weekday}<br/>Rating: {vote_average}",
+            "style": {
+                "backgroundColor": "steelblue",
+                "color": "white"
+            }
+        }
+
+        st.pydeck_chart(pdk.Deck(
+            map_style="mapbox://styles/mapbox/light-v9",
+            initial_view_state=view_state,
+            layers=[layer],
+            tooltip=tooltip
+        ))
     else:
-        st.warning("Tempat wisata tidak ditemukan atau tidak ada rekomendasi yang cocok.")
+        st.warning("❌ Tempat wisata tidak ditemukan atau tidak ada rekomendasi.")
