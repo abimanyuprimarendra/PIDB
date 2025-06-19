@@ -3,7 +3,8 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics.pairwise import cosine_similarity
-import pydeck as pdk
+import folium
+from streamlit_folium import st_folium
 
 # Fungsi membersihkan harga
 def clean_price(x):
@@ -101,37 +102,23 @@ if st.button("Tampilkan Rekomendasi"):
 
         st.subheader("Peta Lokasi Rekomendasi")
 
-        # Pydeck map
-        layer = pdk.Layer(
-            "ScatterplotLayer",
-            data=rekomendasi_df,
-            get_position='[longitude, latitude]',
-            get_fill_color='[30, 144, 255, 180]',
-            get_radius=200,
-            pickable=True,
-        )
+        map_center = [rekomendasi_df['latitude'].mean(), rekomendasi_df['longitude'].mean()]
+        m = folium.Map(location=map_center, zoom_start=12)
 
-        view_state = pdk.ViewState(
-            latitude=rekomendasi_df['latitude'].mean(),
-            longitude=rekomendasi_df['longitude'].mean(),
-            zoom=11,
-            pitch=0
-        )
+        for _, row in rekomendasi_df.iterrows():
+            popup_content = f"""
+            <b>{row['nama']}</b><br>
+            Kategori: {row['type']}<br>
+            HTM Weekday: {row['htm_weekday']}<br>
+            HTM Weekend: {row['htm_weekend']}<br>
+            Rating: {row['vote_average']}<br>
+            """
+            folium.Marker(
+                location=[row['latitude'], row['longitude']],
+                popup=folium.Popup(popup_content, max_width=250)
+            ).add_to(m)
 
-        tooltip = {
-            "html": "<b>{nama}</b><br/>Kategori: {type}<br/>Rating: {vote_average}<br/>HTM: {htm_weekday}",
-            "style": {
-                "backgroundColor": "#2c3e50",
-                "color": "white"
-            }
-        }
+        st_folium(m, width=800, height=500)
 
-        st.pydeck_chart(pdk.Deck(
-            map_style="mapbox://styles/mapbox/streets-v11",
-            initial_view_state=view_state,
-            layers=[layer],
-            tooltip=tooltip,
-            height=500
-        ))
     else:
         st.warning("Tempat wisata tidak ditemukan atau tidak ada rekomendasi.")
