@@ -120,8 +120,9 @@ elif page == "Rekomendasi Tempat Serupa":
             if 'Latitude' in tours_df.columns and 'Longitude' in tours_df.columns:
                 lat = tours_df.loc[tours_df['Place_Id'] == row['Place_Id'], 'Latitude'].values[0]
                 lon = tours_df.loc[tours_df['Place_Id'] == row['Place_Id'], 'Longitude'].values[0]
-                st.markdown(f"**Koordinat:** {lat}, {lon}")
-
+            
+                address = get_address_from_coordinates(lat, lon)
+                st.markdown(f"**Alamat:** {address}")
                 # Ambil alamat
                 address = get_address_from_coordinates(lat, lon)
                 st.markdown(f"**Alamat:** {address}")
