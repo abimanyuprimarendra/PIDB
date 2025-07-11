@@ -1,125 +1,83 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import StandardScaler
 from sklearn.metrics.pairwise import cosine_similarity
-import folium
-from streamlit_folium import st_folium
 
-# Fungsi membersihkan harga
-def clean_price(x):
-    if pd.isna(x): return np.nan
-    return float(str(x).replace('Rp', '').replace('.', '').replace(',', '').strip())
-
+# Load dataset (sesuaikan path dengan file lokal atau Drive-mount kamu)
 @st.cache_data
-def load_data_from_drive():
-    csv_url = "https://drive.google.com/uc?id=1F4LiTAs79DDimrQgKCUi1HqHQ-HmIYEj"
-    df = pd.read_csv(csv_url)
+def load_data():
+    base_path = '/content/drive/MyDrive/Semester 6/PIDB JURNAL NON REG SCIENTIST/DATASET PARIWISATA YOGYAKARTA/'
+    tours_df = pd.read_csv(base_path + 'tour.csv')
+    ratings_df = pd.read_csv(base_path + 'tour_rating.csv')
+    return tours_df, ratings_df
 
-    df.drop(columns=['image'], inplace=True, errors='ignore')
-    df.replace(['-', 'null', 'NaN', ''], np.nan, inplace=True)
-    df.drop_duplicates(inplace=True)
+tours_df, ratings_df = load_data()
 
-    df['htm_weekday'] = df['htm_weekday'].apply(clean_price)
-    df['htm_weekend'] = df['htm_weekend'].apply(clean_price)
+# Membuat pivot table dan matriks similarity
+@st.cache_data
+def prepare_similarity(ratings_df):
+    pivot_table = ratings_df.pivot_table(index='User_Id', columns='Place_Id', values='Place_Ratings').fillna(0)
+    similarity_matrix = cosine_similarity(pivot_table.T)
+    similarity_df = pd.DataFrame(similarity_matrix, index=pivot_table.columns, columns=pivot_table.columns)
+    return pivot_table, similarity_df
 
-    num_cols = ['vote_average', 'vote_count', 'latitude', 'longitude']
-    df[num_cols] = df[num_cols].apply(pd.to_numeric, errors='coerce')
+pivot_filled, item_similarity_df = prepare_similarity(ratings_df)
 
-    df['htm_weekday'] = df['htm_weekday'].fillna(df['htm_weekday'].median())
-    df['htm_weekend'] = df['htm_weekend'].fillna(df['htm_weekend'].median())
-    df['vote_average'] = df['vote_average'].fillna(0)
-    df['vote_count'] = df['vote_count'].fillna(0)
-    df['latitude'] = df['latitude'].fillna(0)
-    df['longitude'] = df['longitude'].fillna(0)
-    df['description'] = df['description'].fillna('')
+place_names = tours_df.set_index('Place_Id')['Place_Name'].to_dict()
 
-    df['type_encoded'] = df['type'].astype('category').cat.codes
+# Fungsi prediksi rating
+def predict_rating(user_id, item_id, pivot_df, similarity_df):
+    if item_id not in similarity_df.columns or user_id not in pivot_df.index:
+        return np.nan
+    user_ratings = pivot_df.loc[user_id]
+    item_similarities = similarity_df[item_id]
+    rated_items = user_ratings[user_ratings > 0].index
+    if len(rated_items) == 0:
+        return np.nan
+    sim_scores = item_similarities[rated_items]
+    ratings = user_ratings[rated_items]
+    if sim_scores.sum() == 0:
+        return np.nan
+    predicted_rating = np.dot(sim_scores, ratings) / sim_scores.sum()
+    return predicted_rating
 
-    return df
+# Fungsi rekomendasi tempat serupa berdasarkan kategori
+def recommend_similar_places_by_category(place_id, similarity_df, tours_df, top_n=5):
+    if place_id not in similarity_df:
+        return pd.DataFrame(columns=['Place_Id', 'Place_Name', 'Category', 'City'])
+    if place_id not in tours_df['Place_Id'].values:
+        return pd.DataFrame(columns=['Place_Id', 'Place_Name', 'Category', 'City'])
+    selected_category = tours_df.loc[tours_df['Place_Id'] == place_id, 'Category'].values[0]
+    sim_scores = similarity_df[place_id].sort_values(ascending=False)
+    candidate_ids = sim_scores.iloc[1:top_n*3].index
+    candidate_df = tours_df[tours_df['Place_Id'].isin(candidate_ids)]
+    filtered_df = candidate_df[candidate_df['Category'] == selected_category]
+    return filtered_df[['Place_Id', 'Place_Name', 'Category', 'City']].head(top_n).reset_index(drop=True)
 
-def get_recommendations(df, nama_wisata, top_n=5):
-    features = ['vote_average', 'vote_count', 'htm_weekday', 'htm_weekend']
-    scaler = StandardScaler()
-    item_features_scaled = scaler.fit_transform(df[features])
+# Streamlit UI
+st.title("Sistem Rekomendasi Tempat Wisata Yogyakarta")
 
-    similarity_matrix = cosine_similarity(item_features_scaled)
-    similarity_df = pd.DataFrame(similarity_matrix, index=df['nama'], columns=df['nama'])
+# Pilihan User_Id dan Place_Id dari data yang tersedia
+user_ids = pivot_filled.index.tolist()
+place_ids = list(place_names.keys())
 
-    if nama_wisata not in similarity_df.index:
-        return pd.DataFrame()
+user_id = st.selectbox("Pilih User_Id", user_ids)
+place_id = st.selectbox("Pilih Place_Id (tempat wisata)", place_ids, format_func=lambda x: f"{x} - {place_names.get(x, 'Unknown')}")
 
-    similar = similarity_df[nama_wisata].sort_values(ascending=False).iloc[1:top_n+1]
-    result_df = df[df['nama'].isin(similar.index)].copy()
-    result_df['similarity_score'] = similar.values
-    return result_df[['nama', 'type', 'description', 'htm_weekday', 'htm_weekend', 'vote_average', 'latitude', 'longitude', 'similarity_score']]
+# Tampilkan prediksi rating
+pred_rating = predict_rating(user_id, place_id, pivot_filled, item_similarity_df)
 
-# UI Streamlit
-st.set_page_config(page_title="Rekomendasi Wisata Jogja", layout="wide")
-st.title('Rekomendasi Tempat Wisata di Yogyakarta')
+if np.isnan(pred_rating):
+    st.warning("Prediksi rating tidak tersedia untuk kombinasi User_Id dan Place_Id ini.")
+else:
+    st.success(f"Prediksi rating User {user_id} untuk tempat '{place_names.get(place_id)}' adalah: {pred_rating:.2f}")
 
-df = load_data_from_drive()
+# Tampilkan rekomendasi tempat serupa
+st.subheader(f"Rekomendasi tempat wisata serupa berdasarkan kategori '{tours_df.loc[tours_df['Place_Id']==place_id, 'Category'].values[0]}'")
 
-# Filter kategori dan rating
-with st.sidebar:
-    st.header("Filter Tambahan")
-    kategori_unik = sorted(df['type'].dropna().unique())
-    kategori_pilihan = st.multiselect("Pilih kategori:", kategori_unik, default=kategori_unik)
+recommendations = recommend_similar_places_by_category(place_id, item_similarity_df, tours_df, top_n=5)
 
-    min_rating = float(df['vote_average'].min())
-    max_rating = float(df['vote_average'].max())
-    rating_range = st.slider("Batas rating:", min_value=min_rating, max_value=max_rating, value=(min_rating, max_rating))
-
-# Terapkan filter
-df_filtered = df[df['type'].isin(kategori_pilihan) & df['vote_average'].between(rating_range[0], rating_range[1])]
-
-# Input wisata
-st.session_state.setdefault("last_selected", None)
-
-nama_wisata_list = df_filtered['nama'].dropna().unique()
-selected_wisata = st.selectbox("Pilih tempat wisata sebagai acuan:", nama_wisata_list, index=0)
-
-# Reset otomatis jika wisata berubah
-if selected_wisata != st.session_state["last_selected"]:
-    st.session_state["show_rekomendasi"] = False
-    st.session_state["last_selected"] = selected_wisata
-
-st.session_state.setdefault("show_rekomendasi", False)
-
-# Slider dan tombol rekomendasi
-top_n = st.slider("Jumlah rekomendasi ditampilkan", 1, 10, 5)
-
-if st.button("Tampilkan Rekomendasi"):
-    st.session_state["show_rekomendasi"] = True
-
-if st.session_state["show_rekomendasi"]:
-    rekomendasi_df = get_recommendations(df_filtered, selected_wisata, top_n)
-
-    if not rekomendasi_df.empty:
-        st.subheader("Tabel Rekomendasi Tempat Wisata")
-        st.dataframe(rekomendasi_df.drop(columns=['latitude', 'longitude']))
-
-        st.subheader("Peta Lokasi Rekomendasi")
-        m = folium.Map(location=[rekomendasi_df['latitude'].mean(), rekomendasi_df['longitude'].mean()], zoom_start=12)
-
-        for _, row in rekomendasi_df.iterrows():
-            popup_info = f"""
-                <div style='font-size: 11px'>
-                <b>{row['nama']}</b><br>
-                Kategori: {row['type']}<br>
-                HTM: {row['htm_weekday']}<br>
-                Rating: {row['vote_average']}<br>
-                Skor Kemiripan: {row['similarity_score']:.2f}<br>
-                Latitude: {row['latitude']}<br>
-                Longitude: {row['longitude']}
-                </div>
-            """
-            folium.Marker(
-                location=[row['latitude'], row['longitude']],
-                popup=folium.Popup(popup_info, max_width=250),
-                icon=folium.Icon(color="red")
-            ).add_to(m)
-
-        st_folium(m, width=700, height=500)
-    else:
-        st.warning("Tempat wisata tidak ditemukan atau tidak ada rekomendasi.")
+if recommendations.empty:
+    st.info("Tidak ditemukan rekomendasi yang sesuai.")
+else:
+    st.dataframe(recommendations)
