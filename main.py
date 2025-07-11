@@ -123,6 +123,3 @@ elif page == "Rekomendasi Tempat Serupa":
             
                 address = get_address_from_coordinates(lat, lon)
                 st.markdown(f"**Alamat:** {address}")
-                # Ambil alamat
-                address = get_address_from_coordinates(lat, lon)
-                st.markdown(f"**Alamat:** {address}")
