@@ -7,7 +7,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 st.title("Sistem Rekomendasi Tempat Wisata Yogyakarta")
 
-# Fungsi load CSV dari Google Drive
+# Fungsi untuk load CSV dari Google Drive
 def load_csv_from_drive(file_id):
     url = f"https://drive.google.com/uc?export=download&id={file_id}"
     response = requests.get(url)
@@ -27,7 +27,7 @@ ratings_df = load_csv_from_drive(rating_csv_id)
 if tours_df.empty or ratings_df.empty:
     st.stop()
 
-# Preprocessing data
+# Preprocessing
 pivot_table = ratings_df.pivot_table(index='User_Id', columns='Place_Id', values='Place_Ratings').fillna(0)
 item_similarity_matrix = cosine_similarity(pivot_table.T)
 item_similarity_df = pd.DataFrame(item_similarity_matrix, index=pivot_table.columns, columns=pivot_table.columns)
@@ -63,9 +63,7 @@ def recommend_similar_places_by_category(place_id, similarity_df, tours_df, top_
 st.sidebar.title("Navigasi")
 page = st.sidebar.radio("Pilih Halaman", ["Prediksi Rating", "Rekomendasi Tempat Serupa"])
 
-# =========================== #
-# Halaman: Prediksi Rating
-# =========================== #
+# Halaman Prediksi Rating
 if page == "Prediksi Rating":
     st.header("Prediksi Rating Tempat Wisata")
 
@@ -79,9 +77,7 @@ if page == "Prediksi Rating":
     else:
         st.success(f"Prediksi rating User {user_id} untuk tempat **{place_names.get(place_id)}** adalah **{pred:.2f}**")
 
-# =========================== #
-# Halaman: Rekomendasi Tempat
-# =========================== #
+# Halaman Rekomendasi
 elif page == "Rekomendasi Tempat Serupa":
     st.header("Rekomendasi Tempat Wisata Serupa")
 
@@ -91,7 +87,7 @@ elif page == "Rekomendasi Tempat Serupa":
 
     st.info(f"Menampilkan rekomendasi serupa untuk: **{selected_place_name}**")
 
-       recs = recommend_similar_places_by_category(selected_place_id, item_similarity_df, tours_df, top_n=5)
+    recs = recommend_similar_places_by_category(selected_place_id, item_similarity_df, tours_df, top_n=5)
 
     if recs.empty:
         st.info("Tidak ditemukan rekomendasi.")
