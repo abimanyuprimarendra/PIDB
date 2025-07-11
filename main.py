@@ -77,8 +77,7 @@ if page == "🔍 Prediksi Rating":
     else:
         st.success(f"Prediksi rating User {user_id} untuk tempat '{place_names.get(place_id)}' adalah **{pred:.2f}**")
 
-elif page == "🌟 Rekomendasi Tempat Serupa":
-    st.header("🌟 Rekomendasi Tempat Serupa berdasarkan Tempat Wisata")
+elif page == "Rekomendasi Tempat Wisata":
 
     # Dropdown berdasarkan nama tempat
     place_name_to_id = {v: k for k, v in place_names.items()}
