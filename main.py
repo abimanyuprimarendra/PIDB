@@ -5,7 +5,6 @@ import requests
 import io
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.metrics import mean_absolute_error, mean_squared_error
-import matplotlib.pyplot as plt
 
 st.set_page_config(page_title="Sistem Rekomendasi Tempat Wisata", layout="wide")
 st.title("Sistem Rekomendasi Tempat Wisata Yogyakarta")
@@ -72,7 +71,7 @@ if page == "Prediksi Rating":
         st.markdown(f"**Kota:** {place_row['City']}")
         st.markdown(f"**Deskripsi:** {place_row['Description']}")
 
-    st.subheader("Visualisasi Akurasi Prediksi")
+    st.subheader("Evaluasi Akurasi Prediksi")
     if 'Predicted_Rating' not in ratings_df.columns:
         predictions = []
         for idx, row in ratings_df.iterrows():
@@ -83,18 +82,12 @@ if page == "Prediksi Rating":
         ratings_df['Predicted_Rating'] = predictions
 
     test_df_clean = ratings_df.dropna(subset=['Predicted_Rating'])
-    fig, ax = plt.subplots()
-    ax.scatter(test_df_clean['Place_Ratings'], test_df_clean['Predicted_Rating'], alpha=0.6, color='darkgreen')
-    ax.set_xlabel("Rating Aktual")
-    ax.set_ylabel("Rating Prediksi")
-    ax.set_title("Sebaran Rating Aktual vs Prediksi")
-    ax.grid(True)
-    st.pyplot(fig)
 
     mae = mean_absolute_error(test_df_clean['Place_Ratings'], test_df_clean['Predicted_Rating'])
     rmse = np.sqrt(mean_squared_error(test_df_clean['Place_Ratings'], test_df_clean['Predicted_Rating']))
-    st.markdown(f"**Mean Absolute Error (MAE):** {mae:.4f}  ")
-    st.markdown(f"**Root Mean Squared Error (RMSE):** {rmse:.4f}")
+
+    st.metric("Mean Absolute Error (MAE)", f"{mae:.4f}")
+    st.metric("Root Mean Squared Error (RMSE)", f"{rmse:.4f}")
 
 # ==== Halaman Rekomendasi ====
 if page == "Rekomendasi Tempat":
