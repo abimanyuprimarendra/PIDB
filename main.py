@@ -91,7 +91,7 @@ elif page == "Rekomendasi Tempat Serupa":
 
     st.info(f"Menampilkan rekomendasi serupa untuk: **{selected_place_name}**")
 
-    recs = recommend_similar_places_by_category(selected_place_id, item_similarity_df, tours_df, top_n=5)
+       recs = recommend_similar_places_by_category(selected_place_id, item_similarity_df, tours_df, top_n=5)
 
     if recs.empty:
         st.info("Tidak ditemukan rekomendasi.")
@@ -106,8 +106,8 @@ elif page == "Rekomendasi Tempat Serupa":
                 deskripsi = tours_df.loc[tours_df['Place_Id'] == row['Place_Id'], 'Description'].values[0]
                 st.markdown(f"**Deskripsi:** {deskripsi}")
 
-            # Tampilkan gambar jika ada kolom 'image'
-            if 'image' in tours_df.columns:
-                img_url = tours_df.loc[tours_df['Place_Id'] == row['Place_Id'], 'image'].values[0]
-                if isinstance(img_url, str) and img_url.startswith('http'):
-                    st.image(img_url, use_column_width=True)
+            # Tampilkan koordinat lokasi
+            if 'Latitude' in tours_df.columns and 'Longitude' in tours_df.columns:
+                lat = tours_df.loc[tours_df['Place_Id'] == row['Place_Id'], 'Latitude'].values[0]
+                lon = tours_df.loc[tours_df['Place_Id'] == row['Place_Id'], 'Longitude'].values[0]
+                st.markdown(f"**Lokasi:** {lat}, {lon}")
