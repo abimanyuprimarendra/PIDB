@@ -16,6 +16,20 @@ def load_csv_from_drive(file_id):
         return pd.DataFrame()
     return pd.read_csv(io.StringIO(response.content.decode('utf-8')))
 
+# Fungsi Reverse Geocoding
+def get_address_from_coordinates(lat, lon):
+    try:
+        url = f"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lon}&format=json"
+        headers = {'User-Agent': 'streamlit-app'}
+        response = requests.get(url, headers=headers, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            return data.get('display_name', 'Alamat tidak ditemukan')
+        else:
+            return "Gagal mengambil alamat"
+    except:
+        return "Tidak bisa mengakses alamat"
+
 # Ganti dengan file_id kamu
 tour_csv_id = '11hQi3aqQkq5m2567jl7Ux1klXShLnYox'
 rating_csv_id = '14Bke4--cJi6bVrQng8HlpFihOFOPhGZJ'
@@ -77,7 +91,7 @@ if page == "Prediksi Rating":
     else:
         st.success(f"Prediksi rating User {user_id} untuk tempat **{place_names.get(place_id)}** adalah **{pred:.2f}**")
 
-# Halaman Rekomendasi
+# Halaman Rekomendasi Tempat Serupa
 elif page == "Rekomendasi Tempat Serupa":
     st.header("Rekomendasi Tempat Wisata Serupa")
 
@@ -97,13 +111,17 @@ elif page == "Rekomendasi Tempat Serupa":
             st.subheader(row['Place_Name'])
             st.markdown(f"**Kategori:** {row['Category']}  \n**Kota:** {row['City']}")
 
-            # Tampilkan deskripsi jika ada
+            # Deskripsi
             if 'Description' in tours_df.columns:
                 deskripsi = tours_df.loc[tours_df['Place_Id'] == row['Place_Id'], 'Description'].values[0]
                 st.markdown(f"**Deskripsi:** {deskripsi}")
 
-            # Tampilkan koordinat lokasi
+            # Koordinat dan alamat
             if 'Latitude' in tours_df.columns and 'Longitude' in tours_df.columns:
                 lat = tours_df.loc[tours_df['Place_Id'] == row['Place_Id'], 'Latitude'].values[0]
                 lon = tours_df.loc[tours_df['Place_Id'] == row['Place_Id'], 'Longitude'].values[0]
-                st.markdown(f"**Lokasi:** {lat}, {lon}")
+                st.markdown(f"**Koordinat:** {lat}, {lon}")
+
+                # Ambil alamat
+                address = get_address_from_coordinates(lat, lon)
+                st.markdown(f"**Alamat:** {address}")
