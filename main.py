@@ -4,7 +4,6 @@ import numpy as np
 import requests
 import io
 from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 st.set_page_config(page_title="Sistem Rekomendasi Tempat Wisata", layout="wide")
 st.title("Sistem Rekomendasi Tempat Wisata Yogyakarta")
@@ -70,24 +69,6 @@ if page == "Prediksi Rating":
         st.markdown(f"**Kategori:** {place_row['Category']}")
         st.markdown(f"**Kota:** {place_row['City']}")
         st.markdown(f"**Deskripsi:** {place_row['Description']}")
-
-    st.subheader("Evaluasi Akurasi Prediksi")
-    if 'Predicted_Rating' not in ratings_df.columns:
-        predictions = []
-        for idx, row in ratings_df.iterrows():
-            uid = row['User_Id']
-            pid = row['Place_Id']
-            pred_rating = predict_rating(uid, pid, pivot_table, item_similarity_df)
-            predictions.append(pred_rating)
-        ratings_df['Predicted_Rating'] = predictions
-
-    test_df_clean = ratings_df.dropna(subset=['Predicted_Rating'])
-
-    mae = mean_absolute_error(test_df_clean['Place_Ratings'], test_df_clean['Predicted_Rating'])
-    rmse = np.sqrt(mean_squared_error(test_df_clean['Place_Ratings'], test_df_clean['Predicted_Rating']))
-
-    st.metric("Mean Absolute Error (MAE)", f"{mae:.4f}")
-    st.metric("Root Mean Squared Error (RMSE)", f"{rmse:.4f}")
 
 # ==== Halaman Rekomendasi ====
 if page == "Rekomendasi Tempat":
