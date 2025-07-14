@@ -50,7 +50,6 @@ def get_recommendations(place_id, top_n=5):
     place_id = str(int(place_id))
     if place_id not in item_similarity_df.index:
         return pd.DataFrame()
-
     similar_scores = item_similarity_df[place_id].sort_values(ascending=False).drop(place_id)
     top_places = similar_scores.head(top_n).index.tolist()
     return tour_df[tour_df['Place_Id'].isin(top_places)][
@@ -61,7 +60,6 @@ def get_recommendation_by_name(place_name, top_n=5):
     match = tour_df[tour_df['Place_Name'].str.lower() == place_name.lower()]
     if match.empty:
         return pd.DataFrame(), None
-
     place_id = match['Place_Id'].values[0]
     origin = match.iloc[0]
     return get_recommendations(place_id, top_n), origin
@@ -70,7 +68,6 @@ def get_recommendation_by_name(place_name, top_n=5):
 # 6. Sidebar + Form Submit
 # ============================
 st.sidebar.header("🎒 Pilih Tempat Wisata")
-
 with st.sidebar.form(key='form_rekomendasi'):
     place_names = sorted(tour_df['Place_Name'].unique())
     selected_place = st.selectbox("Nama Tempat", place_names)
@@ -91,17 +88,29 @@ if cari:
     if not rekomendasi_df.empty:
         st.markdown("### ✨ Rekomendasi Wisata:")
         col1, col2, col3, col4, col5 = st.columns(5)
-
         col_list = [col1, col2, col3, col4, col5]
+
+        card_style = """
+            background-color: #f9f9f9;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            min-height: 220px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        """
+
         for idx, (_, row) in enumerate(rekomendasi_df.iterrows()):
             with col_list[idx]:
                 st.markdown(f"""
-                    <div style="background-color: #f9f9f9; border-radius: 15px; padding: 15px; 
-                                box-shadow: 0 4px 8px rgba(0,0,0,0.1); min-height: 150px;">
-                        <h4 style="margin-bottom: 10px;">{row['Place_Name']}</h4>
-                        <p style="margin: 0;">Kategori: <b>{row['Category']}</b></p>
-                        <p style="margin: 0;">Kota: <b>{row['City']}</b></p>
-                        <p style="margin: 0;">⭐ Rating: <b>{row['Rating']}</b></p>
+                    <div style="{card_style}">
+                        <div>
+                            <h4 style="margin-bottom: 10px; min-height: 40px;">{row['Place_Name']}</h4>
+                            <p style="margin: 0; min-height: 20px;">Kategori: <b>{row['Category']}</b></p>
+                            <p style="margin: 0; min-height: 20px;">Kota: <b>{row['City']}</b></p>
+                        </div>
+                        <p style="margin: 0; margin-top: 15px;">⭐ Rating: <b>{row['Rating']}</b></p>
                     </div>
                 """, unsafe_allow_html=True)
     elif origin_place is None:
