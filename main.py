@@ -90,29 +90,36 @@ if cari:
         col1, col2, col3, col4, col5 = st.columns(5)
         col_list = [col1, col2, col3, col4, col5]
 
+        # URL gambar GitHub (sama untuk semua)
+        image_url = "https://raw.githubusercontent.com/abimanyuprimarendra/PIDB/main/yk.jpg"
+
+        # Styling
         card_style = """
             background-color: #f9f9f9;
             border-radius: 15px;
-            padding: 15px;
+            padding: 10px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            min-height: 220px;
+            min-height: 370px;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
+            justify-content: flex-start;
+            align-items: center;
         """
+
+        image_style = "width: 100%; height: 150px; object-fit: cover; border-radius: 10px; margin-bottom: 10px;"
 
         for idx, (_, row) in enumerate(rekomendasi_df.iterrows()):
             with col_list[idx]:
                 st.markdown(f"""
                     <div style="{card_style}">
-                        <div>
-                            <h4 style="margin-bottom: 10px; min-height: 40px;">{row['Place_Name']}</h4>
-                            <p style="margin: 0; min-height: 20px;">Kategori: <b>{row['Category']}</b></p>
-                            <p style="margin: 0; min-height: 20px;">Kota: <b>{row['City']}</b></p>
-                        </div>
-                        <p style="margin: 0; margin-top: 15px;">⭐ Rating: <b>{row['Rating']}</b></p>
+                        <img src="{image_url}" style="{image_style}" />
+                        <h4 style="margin-bottom: 5px; min-height: 40px; text-align:center;">{row['Place_Name']}</h4>
+                        <p style="margin: 0; min-height: 20px;">Kategori: <b>{row['Category']}</b></p>
+                        <p style="margin: 0; min-height: 20px;">Kota: <b>{row['City']}</b></p>
+                        <p style="margin: 0; margin-top: 10px;">⭐ Rating: <b>{row['Rating']}</b></p>
                     </div>
                 """, unsafe_allow_html=True)
+
     elif origin_place is None:
         st.warning("Tempat wisata tidak ditemukan.")
     else:
