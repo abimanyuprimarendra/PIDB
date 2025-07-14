@@ -53,7 +53,7 @@ def get_recommendations(place_id, top_n=5):
     similar_scores = item_similarity_df[place_id].sort_values(ascending=False).drop(place_id)
     top_places = similar_scores.head(top_n).index.tolist()
     return tour_df[tour_df['Place_Id'].isin(top_places)][
-        ['Place_Name', 'Category', 'City', 'Rating', 'image']
+        ['Place_Name', 'Category', 'City', 'Rating']
     ]
 
 def get_recommendation_by_name(place_name, top_n=5):
@@ -90,6 +90,9 @@ if cari:
         col1, col2, col3, col4, col5 = st.columns(5)
         col_list = [col1, col2, col3, col4, col5]
 
+        # Gunakan gambar yang sama untuk semua card
+        github_image_url = "https://raw.githubusercontent.com/abimanyuprimarendra/PIDB/main/yk.jpg"
+
         card_style = """
             background-color: #ffffff;
             border-radius: 15px;
@@ -106,10 +109,9 @@ if cari:
 
         for idx, (_, row) in enumerate(rekomendasi_df.iterrows()):
             with col_list[idx]:
-                image_url = row.get('image', 'https://github.com/abimanyuprimarendra/PIDB/blob/main/yk.jpg')
                 st.markdown(f"""
                     <div style="{card_style}">
-                        <img src="{image_url}" style="{img_style}" onerror="this.src='https://via.placeholder.com/300x150?text=No+Image'">
+                        <img src="{github_image_url}" style="{img_style}">
                         <div>
                             <h4 style="min-height: 40px;">{row['Place_Name']}</h4>
                             <p style="margin: 0;">Kategori: <b>{row['Category']}</b></p>
