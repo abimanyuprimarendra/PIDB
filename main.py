@@ -53,7 +53,7 @@ def get_recommendations(place_id, top_n=5):
     similar_scores = item_similarity_df[place_id].sort_values(ascending=False).drop(place_id)
     top_places = similar_scores.head(top_n).index.tolist()
     return tour_df[tour_df['Place_Id'].isin(top_places)][
-        ['Place_Name', 'Category', 'City', 'Rating']
+        ['Place_Name', 'Category', 'City', 'Rating', 'image']
     ]
 
 def get_recommendation_by_name(place_name, top_n=5):
@@ -91,26 +91,31 @@ if cari:
         col_list = [col1, col2, col3, col4, col5]
 
         card_style = """
-            background-color: #f9f9f9;
+            background-color: #ffffff;
             border-radius: 15px;
-            padding: 15px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            height: 350px;
+            padding: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            height: 370px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
+            text-align: center;
         """
+
+        img_style = "width: 100%; height: 150px; object-fit: cover; border-radius: 10px; margin-bottom: 10px;"
 
         for idx, (_, row) in enumerate(rekomendasi_df.iterrows()):
             with col_list[idx]:
+                image_url = row.get('image', '')
                 st.markdown(f"""
                     <div style="{card_style}">
+                        <img src="{image_url}" style="{img_style}" onerror="this.src='https://via.placeholder.com/300x150?text=No+Image'">
                         <div>
-                            <h4 style="margin-bottom: 10px; min-height: 40px;">{row['Place_Name']}</h4>
-                            <p style="margin: 0; min-height: 20px;">Kategori: <b>{row['Category']}</b></p>
-                            <p style="margin: 0; min-height: 20px;">Kota: <b>{row['City']}</b></p>
+                            <h4 style="min-height: 40px;">{row['Place_Name']}</h4>
+                            <p style="margin: 0;">Kategori: <b>{row['Category']}</b></p>
+                            <p style="margin: 0;">Kota: <b>{row['City']}</b></p>
                         </div>
-                        <p style="margin: 0; margin-top: 15px;">⭐ Rating: <b>{row['Rating']}</b></p>
+                        <p style="margin-top: 10px;">⭐ Rating: <b>{row['Rating']}</b></p>
                     </div>
                 """, unsafe_allow_html=True)
     elif origin_place is None:
