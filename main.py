@@ -103,73 +103,83 @@ if cari:
         github_image_url = "https://raw.githubusercontent.com/abimanyuprimarendra/PIDB/main/yk.jpg"
 
         # Inject CSS untuk responsif layout
-        st.markdown("""
+              st.markdown("""
         <style>
-        .card-container {
+        .card-row {
             display: flex;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
+            overflow-x: auto;
             gap: 20px;
-            justify-content: center;
+            padding-bottom: 10px;
         }
 
         .card {
-            background-color: #f9f9f9;
+            background-color: #ffffff;
             border-radius: 10px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.08);
-            padding: 15px;
+            width: 280px;
+            min-width: 280px;
+            height: 420px;
+            flex-shrink: 0;
             display: flex;
-            flex-direction: row;
-            gap: 15px;
-            width: 100%;
-            max-width: 800px;
+            flex-direction: column;
+            overflow: hidden;
         }
 
         .card img {
-            width: 280px;
-            height: 200px;
+            width: 100%;
+            height: 160px;
             object-fit: cover;
-            border-radius: 10px;
+            border-top-left-radius: 10px;
+            border-top-right-radius: 10px;
         }
 
-        .card-content {
-            flex: 1;
+        .card-body {
+            padding: 12px;
             text-align: left;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 100%;
         }
 
-        @media (max-width: 768px) {
-            .card {
-                flex-direction: column;
-                align-items: center;
-            }
+        .description {
+            font-size: 13px;
+            max-height: 60px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
 
-            .card img {
-                width: 100%;
-                height: auto;
-            }
+        .info-text {
+            font-size: 14px;
+            margin: 2px 0;
+        }
 
-            .card-content {
-                text-align: center;
-            }
+        .place-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 6px;
         }
         </style>
         """, unsafe_allow_html=True)
 
-        st.markdown('<div class="card-container">', unsafe_allow_html=True)
+        st.markdown('<div class="card-row">', unsafe_allow_html=True)
 
         for _, row in rekomendasi_df.iterrows():
             address = get_address(row['Latitude'], row['Longitude'])
             description = row.get('Description', '')
-
             st.markdown(f"""
             <div class="card">
                 <img src="{github_image_url}">
-                <div class="card-content">
-                    <h3>{row['Place_Name']}</h3>
-                    <p><b>Kategori:</b> {row['Category']}</p>
-                    <p><b>Kota:</b> {row['City']}</p>
-                    <p><b>Rating:</b> {row['Rating']}</p>
-                    <p><b>Alamat:</b> {address}</p>
-                    <p>{description}</p>
+                <div class="card-body">
+                    <div>
+                        <div class="place-title">{row['Place_Name']}</div>
+                        <div class="info-text"><b>Kategori:</b> {row['Category']}</div>
+                        <div class="info-text"><b>Kota:</b> {row['City']}</div>
+                        <div class="info-text"><b>Rating:</b> {row['Rating']}</div>
+                        <div class="info-text"><b>Alamat:</b> {address}</div>
+                        <div class="description">{description}</div>
+                    </div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
