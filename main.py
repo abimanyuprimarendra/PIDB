@@ -95,7 +95,7 @@ if cari:
         card_style = """
             background-color: #ffffff;
             border-radius: 15px;
-            padding: 12px;
+            padding: 10px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
             height: 390px;
             display: flex;
