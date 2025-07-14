@@ -7,9 +7,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 st.set_page_config(page_title="Rekomendasi Wisata Jogja", layout="wide")
 
-# ============================
-# Fungsi Load CSV dari Drive
-# ============================
+# ============================ LOAD CSV ============================
 def load_csv_from_drive(file_id):
     url = f"https://drive.google.com/uc?export=download&id={file_id}"
     response = requests.get(url)
@@ -18,9 +16,7 @@ def load_csv_from_drive(file_id):
         return pd.DataFrame()
     return pd.read_csv(io.StringIO(response.content.decode('utf-8')))
 
-# ============================
-# Reverse Geocoding API
-# ============================
+# ============================ REVERSE GEOCODING ============================
 @st.cache_data(show_spinner=False)
 def get_address(lat, lon):
     try:
@@ -34,34 +30,25 @@ def get_address(lat, lon):
     except:
         return "Alamat tidak ditemukan"
 
-# ============================
-# Load Dataset
-# ============================
+# ============================ LOAD DATASET ============================
 tour_csv_id = '11hQi3aqQkq5m2567jl7Ux1klXShLnYox'
 rating_csv_id = '14Bke4--cJi6bVrQng8HlpFihOFOPhGZJ'
 tour_df = load_csv_from_drive(tour_csv_id)
 rating_df = load_csv_from_drive(rating_csv_id)
 
-# ============================
-# Preprocessing
-# ============================
+# ============================ PREPROCESS ============================
 tour_df.dropna(subset=['Place_Id', 'Place_Name'], inplace=True)
 rating_df.dropna(subset=['User_Id', 'Place_Id', 'Place_Ratings'], inplace=True)
-
 tour_df['Place_Id'] = tour_df['Place_Id'].astype(int).astype(str)
 rating_df['Place_Id'] = rating_df['Place_Id'].astype(int).astype(str)
 rating_df['User_Id'] = rating_df['User_Id'].astype(str)
 
-# ============================
-# Similarity Matrix
-# ============================
+# ============================ SIMILARITY ============================
 rating_matrix = rating_df.pivot_table(index='Place_Id', columns='User_Id', values='Place_Ratings').fillna(0)
 item_similarity = cosine_similarity(rating_matrix)
 item_similarity_df = pd.DataFrame(item_similarity, index=rating_matrix.index, columns=rating_matrix.index)
 
-# ============================
-# Rekomendasi Functions
-# ============================
+# ============================ RECOMMENDATION ============================
 def get_recommendations(place_id, top_n=5):
     place_id = str(int(place_id))
     if place_id not in item_similarity_df.index:
@@ -78,18 +65,14 @@ def get_recommendation_by_name(place_name, top_n=5):
     origin = match.iloc[0]
     return get_recommendations(place_id, top_n), origin
 
-# ============================
-# Sidebar
-# ============================
+# ============================ SIDEBAR ============================
 st.sidebar.header("Pilih Tempat Wisata")
 with st.sidebar.form(key='form_rekomendasi'):
     place_names = sorted(tour_df['Place_Name'].unique())
     selected_place = st.selectbox("Nama Tempat", place_names)
     cari = st.form_submit_button("Cari Rekomendasi")
 
-# ============================
-# Tampilan Hasil
-# ============================
+# ============================ OUTPUT ============================
 st.title("📍 Sistem Rekomendasi Tempat Wisata di Yogyakarta")
 
 if cari:
@@ -100,22 +83,31 @@ if cari:
         st.caption(f"Kategori: {origin_place['Category']} | Kota: {origin_place['City']}")
 
     if not rekomendasi_df.empty:
+        st.markdown("### ✨ Rekomendasi Wisata:")
+
+        # Styling CSS
         st.markdown("""
         <style>
-        .horizontal-scroll {
+        .scroll-container {
             display: flex;
             overflow-x: auto;
             gap: 20px;
-            padding-bottom: 16px;
+            padding-bottom: 10px;
+        }
+        .scroll-container::-webkit-scrollbar {
+            height: 8px;
+        }
+        .scroll-container::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 4px;
         }
         .card {
-            background-color: #ffffff;
+            background-color: #fff;
             border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.08);
-            width: 280px;
-            min-width: 280px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            width: 300px;
+            min-width: 300px;
             flex-shrink: 0;
-            height: 460px;
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -124,57 +116,48 @@ if cari:
             width: 100%;
             height: 160px;
             object-fit: cover;
-            border-top-left-radius: 10px;
-            border-top-right-radius: 10px;
         }
-        .card-body {
+        .card-content {
             padding: 12px;
             text-align: left;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            height: 100%;
-        }
-        .place-title {
-            font-size: 16px;
-            font-weight: bold;
-            margin-bottom: 6px;
-        }
-        .info-text {
             font-size: 13px;
+        }
+        .card-content h4 {
+            margin: 5px 0 10px 0;
+            font-size: 16px;
+        }
+        .card-content p {
             margin: 3px 0;
         }
         .description {
             font-size: 12px;
-            color: #444;
-            max-height: 60px;
+            color: #555;
+            max-height: 50px;
             overflow: hidden;
             text-overflow: ellipsis;
         }
         </style>
         """, unsafe_allow_html=True)
 
-        st.markdown('<div class="horizontal-scroll">', unsafe_allow_html=True)
+        st.markdown('<div class="scroll-container">', unsafe_allow_html=True)
 
         github_image_url = "https://raw.githubusercontent.com/abimanyuprimarendra/PIDB/main/yk.jpg"
 
         for _, row in rekomendasi_df.iterrows():
             address = get_address(row['Latitude'], row['Longitude'])
-            description = row.get('Description', '')
+            description = row.get("Description", "")
             st.markdown(f"""
-            <div class="card">
-                <img src="{github_image_url}">
-                <div class="card-body">
-                    <div>
-                        <div class="place-title">{row['Place_Name']}</div>
-                        <div class="info-text"><b>Kategori:</b> {row['Category']}</div>
-                        <div class="info-text"><b>Kota:</b> {row['City']}</div>
-                        <div class="info-text"><b>Rating:</b> {row['Rating']}</div>
-                        <div class="info-text"><b>Alamat:</b> {address}</div>
-                        <div class="description">{description}</div>
+                <div class="card">
+                    <img src="{github_image_url}">
+                    <div class="card-content">
+                        <h4>{row['Place_Name']}</h4>
+                        <p><b>Kategori:</b> {row['Category']}</p>
+                        <p><b>Kota:</b> {row['City']}</p>
+                        <p><b>Rating:</b> {row['Rating']}</p>
+                        <p><b>Alamat:</b> {address}</p>
+                        <p class="description">{description}</p>
                     </div>
                 </div>
-            </div>
             """, unsafe_allow_html=True)
 
         st.markdown('</div>', unsafe_allow_html=True)
