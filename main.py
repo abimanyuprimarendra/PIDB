@@ -83,8 +83,8 @@ if cari:
         st.markdown(f"Rekomendasi Mirip dengan: **{origin_place['Place_Name']}**")
         st.caption(f"Kategori: {origin_place['Category']} | Kota: {origin_place['City']}")
 
-    if not rekomendasi_df.empty:
-        st.markdown("Rekomendasi Wisata:")
+       if not rekomendasi_df.empty:
+        st.markdown("### Rekomendasi Wisata:")
         cols = st.columns(5)
 
         image_url = "https://raw.githubusercontent.com/abimanyuprimarendra/PIDB/main/yk.jpg"
@@ -94,16 +94,17 @@ if cari:
             border-radius: 15px;
             padding: 16px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            height: 400px;
+            height: 100%;
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
             align-items: flex-start;
             text-align: left;
         """
-        image_style = "width: 100%; height: 150px; object-fit: cover; border-radius: 15px; margin-bottom: 10px;"
-        title_style = "font-weight: 600; font-size: 16px; margin-bottom: 8px;"
-        text_style = "font-size: 13px; margin: 3px 0; line-height: 1.4;"
+        image_style = "width: 100%; height: 150px; object-fit: cover; border-radius: 12px; margin-bottom: 12px;"
+        content_wrapper = "width: 100%; display: flex; flex-direction: column; gap: 4px;"
+        title_style = "font-weight: bold; font-size: 16px; color: #222222; margin: 0;"
+        text_style = "font-size: 13px; color: #444444; margin: 0; line-height: 1.4;"
 
         for idx, (_, row) in enumerate(rekomendasi_df.iterrows()):
             with cols[idx]:
@@ -116,10 +117,12 @@ if cari:
                 st.markdown(f"""
                     <div style="{card_style}">
                         <img src="{image_url}" style="{image_style}" />
-                        <div style="{title_style}">{place_name}</div>
-                        <div style="{text_style}"><b>Kategori:</b> {category}</div>
-                        <div style="{text_style}"><b>Rating:</b> {rating}</div>
-                        <div style="{text_style}">{truncated_description}</div>
+                        <div style="{content_wrapper}">
+                            <p style="{title_style}">{place_name}</p>
+                            <p style="{text_style}"><b>Kategori:</b> {category}</p>
+                            <p style="{text_style}"><b>Rating:</b> {rating}</p>
+                            <p style="{text_style}">{truncated_description}</p>
+                        </div>
                     </div>
                 """, unsafe_allow_html=True)
 
