@@ -65,26 +65,26 @@ def get_recommendation_by_name(place_name, top_n=5):
 # ============================
 # 6. Sidebar + Form Submit
 # ============================
-st.sidebar.header("🎒 Pilih Tempat Wisata")
+st.sidebar.header("Pilih Tempat Wisata")
 with st.sidebar.form(key='form_rekomendasi'):
     place_names = sorted(tour_df['Place_Name'].unique())
     selected_place = st.selectbox("Nama Tempat", place_names)
-    cari = st.form_submit_button("🔍 Cari Rekomendasi")
+    cari = st.form_submit_button("Cari Rekomendasi")
 
 # ============================
 # 7. Output
 # ============================
-st.title("📍 Sistem Rekomendasi Tempat Wisata di Yogyakarta")
+st.title("Sistem Rekomendasi Tempat Wisata di Yogyakarta")
 
 if cari:
     rekomendasi_df, origin_place = get_recommendation_by_name(selected_place)
 
     if origin_place is not None:
-        st.markdown(f"### 🎯 Rekomendasi Mirip dengan: **{origin_place['Place_Name']}**")
+        st.markdown(f"Rekomendasi Mirip dengan: **{origin_place['Place_Name']}**")
         st.caption(f"Kategori: {origin_place['Category']} | Kota: {origin_place['City']}")
 
     if not rekomendasi_df.empty:
-        st.markdown("### ✨ Rekomendasi Wisata:")
+        st.markdown("Rekomendasi Wisata:")
         cols = st.columns(5)
 
         image_url = "https://raw.githubusercontent.com/abimanyuprimarendra/PIDB/main/yk.jpg"
@@ -94,7 +94,7 @@ if cari:
             border-radius: 15px;
             padding: 16px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            height: 100%;
+            height: 400px;
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
