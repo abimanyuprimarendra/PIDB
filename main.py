@@ -111,7 +111,7 @@ if cari:
                 st.markdown(f"""
                 <div style="display: flex; gap: 20px; margin-bottom: 30px; 
                             padding: 20px; background-color: #f9f9f9; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.08);">
-                    <img src="{github_image_url}" style="width: 320px; height: 200px; object-fit: cover; border-radius: 10px;">
+                    <img src="{github_image_url}" style="width: 320px; height: 320px; object-fit: cover; border-radius: 10px;">
                     <div style="flex: 1; text-align: left;">
                         <h3 style="margin-bottom: 8px;">{row['Place_Name']}</h3>
                         <p style="margin: 0;"><b>Kategori:</b> {row['Category']}</p>
