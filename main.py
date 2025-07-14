@@ -83,8 +83,8 @@ if cari:
         st.markdown(f"Rekomendasi Mirip dengan: **{origin_place['Place_Name']}**")
         st.caption(f"Kategori: {origin_place['Category']} | Kota: {origin_place['City']}")
 
-    if not rekomendasi_df.empty:
-        st.markdown("Rekomendasi Wisata:")
+       if not rekomendasi_df.empty:
+        st.markdown("### Rekomendasi Wisata:")
         cols = st.columns(5)
 
         image_url = "https://raw.githubusercontent.com/abimanyuprimarendra/PIDB/main/yk.jpg"
@@ -94,16 +94,16 @@ if cari:
             border-radius: 15px;
             padding: 12px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            min-height: 420px;
+            height: 100%;
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
-            align-items: center;
+            align-items: flex-start;
             text-align: left;
         """
         image_style = "width: 100%; height: 150px; object-fit: cover; border-radius: 10px; margin-bottom: 10px;"
-        title_style = "font-weight: bold; font-size: 18px; margin-bottom: 5px; text-align:left; width:100%;"
-        text_style = "font-size: 13px; margin: 2px 0; width:100%;"
+        title_style = "font-weight: 600; font-size: 16px; margin-bottom: 5px;"
+        text_style = "font-size: 13px; margin: 2px 0; line-height: 1.4;"
 
         for idx, (_, row) in enumerate(rekomendasi_df.iterrows()):
             with cols[idx]:
@@ -116,12 +116,13 @@ if cari:
                 st.markdown(f"""
                     <div style="{card_style}">
                         <img src="{image_url}" style="{image_style}" />
-                        <div style="{title_style}"> {place_name}</div>
+                        <div style="{title_style}">{place_name}</div>
                         <div style="{text_style}"><b>Kategori:</b> {category}</div>
                         <div style="{text_style}"><b>Rating:</b> {rating}</div>
                         <div style="{text_style}">{truncated_description}</div>
                     </div>
                 """, unsafe_allow_html=True)
+
 
     elif origin_place is None:
         st.warning("Tempat wisata tidak ditemukan.")
