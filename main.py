@@ -5,6 +5,7 @@ import requests
 import io
 from sklearn.metrics.pairwise import cosine_similarity
 
+# Konfigurasi halaman
 st.set_page_config(page_title="Rekomendasi Wisata Jogja", layout="wide")
 
 # ===================================
@@ -86,26 +87,19 @@ if selected_place:
         st.caption(f"Kategori: {origin_place['Category']} | Kota: {origin_place['City']}")
 
     if not rekomendasi_df.empty:
-        cards_html = ""
-        for _, row in rekomendasi_df.iterrows():
-            cards_html += f"""
-            <div style="flex: 0 0 auto; min-width: 220px; background-color: #f9f9f9;
-                        border-radius: 12px; margin: 10px; padding: 15px;
-                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                <h4 style="margin-bottom: 5px;">{row['Place_Name']}</h4>
-                <p style="margin: 0;">Kategori: <b>{row['Category']}</b></p>
-                <p style="margin: 0;">Kota: <b>{row['City']}</b></p>
-                <p style="margin: 0;">⭐ Rating: <b>{row['Rating']}</b></p>
-            </div>
-            """
+        st.markdown("### ✨ Rekomendasi Wisata Serupa")
+        cols = st.columns(5)  # 5 kolom sejajar
 
-        # Container utama untuk scroll horizontal
-        container = f"""
-        <div style="display: flex; flex-direction: row; flex-wrap: nowrap;
-                    overflow-x: auto; padding: 10px;">
-            {cards_html}
-        </div>
-        """
-        st.markdown(container, unsafe_allow_html=True)
+        for idx, (_, row) in enumerate(rekomendasi_df.iterrows()):
+            with cols[idx]:
+                st.markdown(f"""
+                <div style="background-color: #f9f9f9; border-radius: 15px; padding: 15px; 
+                            box-shadow: 0 4px 8px rgba(0,0,0,0.1); min-height: 150px;">
+                    <h4 style="margin-bottom: 10px;">{row['Place_Name']}</h4>
+                    <p style="margin: 0;">Kategori: <b>{row['Category']}</b></p>
+                    <p style="margin: 0;">Kota: <b>{row['City']}</b></p>
+                    <p style="margin: 0;">⭐ Rating: <b>{row['Rating']}</b></p>
+                </div>
+                """, unsafe_allow_html=True)
     else:
         st.info("Tidak ada rekomendasi ditemukan.")
