@@ -17,11 +17,9 @@ def load_csv_from_drive(file_id):
         return pd.DataFrame()
     return pd.read_csv(io.StringIO(response.content.decode('utf-8')))
 
-# File ID
+# Load dataset
 tour_csv_id = '11hQi3aqQkq5m2567jl7Ux1klXShLnYox'
 rating_csv_id = '14Bke4--cJi6bVrQng8HlpFihOFOPhGZJ'
-
-# Load dataset
 tours_df = load_csv_from_drive(tour_csv_id)
 ratings_df = load_csv_from_drive(rating_csv_id)
 
@@ -35,7 +33,6 @@ item_similarity_df = pd.DataFrame(item_similarity_matrix, index=pivot_table.colu
 place_names = tours_df.set_index('Place_Id')['Place_Name'].to_dict()
 place_name_to_id = {v: k for k, v in place_names.items()}
 
-# Fungsi rekomendasi
 def recommend_similar_places_by_category(place_id, similarity_df, tours_df, top_n=5):
     if place_id not in similarity_df or place_id not in tours_df['Place_Id'].values:
         return pd.DataFrame()
@@ -51,25 +48,59 @@ st.sidebar.title("📌 Pilih Tempat Wisata")
 selected_place_name = st.sidebar.selectbox("Nama Tempat", [""] + list(place_name_to_id.keys()))
 cari_button = st.sidebar.button("🔍 Cari Rekomendasi")
 
-# Tampilkan rekomendasi jika dipilih
+# CSS custom untuk card
+st.markdown("""
+<style>
+.card {
+    background-color: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    text-align: center;
+    margin: 10px;
+    height: 100%;
+}
+.card img {
+    width: 60px;
+    margin-bottom: 10px;
+}
+.card-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: #333;
+    margin: 0 0 10px 0;
+}
+.card-body {
+    font-size: 14px;
+    color: #444;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# Rekomendasi ditampilkan jika tombol diklik
 if cari_button and selected_place_name != "":
     selected_place_id = place_name_to_id[selected_place_name]
     recs = recommend_similar_places_by_category(selected_place_id, item_similarity_df, tours_df, top_n=5)
 
-    st.markdown(f"### 🎯 5 Rekomendasi Tempat Mirip **'{selected_place_name}'**")
+    st.markdown(f"### ✨ 5 Rekomendasi Tempat Mirip **'{selected_place_name}'**")
 
     if recs.empty:
         st.info("Tidak ditemukan rekomendasi.")
     else:
-        col_list = st.columns(len(recs))  # card horizontal dalam satu baris
+        cols = st.columns(len(recs))  # 1 baris horizontal
         for i, row in recs.iterrows():
-            with col_list[i]:
-                st.image("https://static.thenounproject.com/png/3305605-200.png", width=100)  # placeholder image
-                st.markdown(f"**{row['Place_Name']}**")
-                st.markdown(f"Kategori: {row['Category']}")
-                st.markdown(f"Kota: {row['City']}")
-                st.markdown(f"Harga: Rp{int(row['Price']):,}")
-                if pd.notna(row['Description']):
-                    st.markdown(f"<small>{row['Description'][:150]}...</small>", unsafe_allow_html=True)
+            with cols[i]:
+                st.markdown(f"""
+                <div class="card">
+                    <img src="https://static.thenounproject.com/png/3305605-200.png" alt="icon">
+                    <div class="card-title">{row['Place_Name']}</div>
+                    <div class="card-body">
+                        <b>Kategori:</b> {row['Category']}<br>
+                        <b>Kota:</b> {row['City']}<br>
+                        <b>Harga:</b> Rp{int(row['Price']):,}<br>
+                        <div style='margin-top:10px'>{row['Description'][:120]}...</div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
 else:
-    st.empty()  # reset tampilan saat belum pilih tempat
+    st.empty()
