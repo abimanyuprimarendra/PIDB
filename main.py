@@ -85,21 +85,20 @@ if cari:
     if not rekomendasi_df.empty:
         st.markdown("### 5 Rekomendasi Tempat Wisata:")
 
-        # Styling CSS untuk horizontal card scroll
+        # Styling CSS agar card tampil horizontal
         st.markdown("""
         <style>
         .scroll-container {
             display: flex;
             overflow-x: auto;
             gap: 20px;
-            padding-bottom: 10px;
-            margin-top: 15px;
+            padding: 10px 0;
         }
         .scroll-container::-webkit-scrollbar {
             height: 8px;
         }
         .scroll-container::-webkit-scrollbar-thumb {
-            background: #ccc;
+            background: #bbb;
             border-radius: 4px;
         }
         .card {
@@ -140,7 +139,7 @@ if cari:
         </style>
         """, unsafe_allow_html=True)
 
-        # Buat HTML dari semua card dan tampilkan dalam 1 container horizontal
+        # Gambar default
         github_image_url = "https://raw.githubusercontent.com/abimanyuprimarendra/PIDB/main/yk.jpg"
         cards_html = ""
 
@@ -161,6 +160,7 @@ if cari:
                 </div>
             """
 
+        # Tampilkan semua card sebagai 1 baris horizontal
         st.markdown(f'<div class="scroll-container">{cards_html}</div>', unsafe_allow_html=True)
 
     elif origin_place is None:
