@@ -84,16 +84,29 @@ recs = recommend_similar_places_by_category(selected_place_id, item_similarity_d
 if recs.empty:
     st.info("Tidak ditemukan rekomendasi.")
 else:
-    for _, row in recs.iterrows():
-        st.markdown("---")
-        st.subheader(row['Place_Name'])
-        st.markdown(f"**Kategori:** {row['Category']}  \n**Kota:** {row['City']}")
-        if 'Description' in tours_df.columns:
-            deskripsi = tours_df.loc[tours_df['Place_Id'] == row['Place_Id'], 'Description'].values[0]
-            st.markdown(f"**Deskripsi:** {deskripsi}")
-        if 'Latitude' in tours_df.columns and 'Longitude' in tours_df.columns:
-            lat = tours_df.loc[tours_df['Place_Id'] == row['Place_Id'], 'Latitude'].values[0]
-            lon = tours_df.loc[tours_df['Place_Id'] == row['Place_Id'], 'Longitude'].values[0]
-            st.markdown(f"**Koordinat:** {lat}, {lon}")
-            address = get_address_from_coordinates(lat, lon)
-            st.markdown(f"**Alamat:** {address}")
+    cols = st.columns(len(recs))  # Membuat kolom horizontal sesuai jumlah rekomendasi
+
+    for i, row in enumerate(recs.itertuples()):
+        with cols[i]:
+            st.markdown(f"""
+                <div style="border: 1px solid #ccc; border-radius: 10px; padding: 15px; background-color: #f9f9f9; height: 100%;">
+                    <h4 style="margin-bottom: 10px;">{row.Place_Name}</h4>
+                    <p><strong>Kategori:</strong> {row.Category}</p>
+                    <p><strong>Kota:</strong> {row.City}</p>
+            """, unsafe_allow_html=True)
+
+            # Tambah deskripsi jika tersedia
+            if 'Description' in tours_df.columns:
+                deskripsi = tours_df.loc[tours_df['Place_Id'] == row.Place_Id, 'Description'].values[0]
+                st.markdown(f"<p>{deskripsi}</p>", unsafe_allow_html=True)
+
+            # Tambah alamat
+            if 'Latitude' in tours_df.columns and 'Longitude' in tours_df.columns:
+                lat = tours_df.loc[tours_df['Place_Id'] == row.Place_Id, 'Latitude'].values[0]
+                lon = tours_df.loc[tours_df['Place_Id'] == row.Place_Id, 'Longitude'].values[0]
+                address = get_address_from_coordinates(lat, lon)
+                st.markdown(f"""
+                    <p><strong>Alamat:</strong> {address}</p>
+                </div>
+                """, unsafe_allow_html=True)
+
