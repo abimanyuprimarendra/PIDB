@@ -8,7 +8,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 st.set_page_config(page_title="Rekomendasi Wisata Jogja", layout="wide")
 
 # ============================
-# 1. Load dari Google Drive
+# Load CSV dari Drive
 # ============================
 def load_csv_from_drive(file_id):
     url = f"https://drive.google.com/uc?export=download&id={file_id}"
@@ -19,13 +19,14 @@ def load_csv_from_drive(file_id):
     return pd.read_csv(io.StringIO(response.content.decode('utf-8')))
 
 # ============================
-# 2. Reverse Geocoding (dari lat-lon ke alamat)
+# Reverse Geocoding dari Koordinat
 # ============================
 @st.cache_data(show_spinner=False)
 def get_address(lat, lon):
     try:
         url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lon}"
-        response = requests.get(url, headers={"User-Agent": "wisata-yogya-app"})
+        headers = {"User-Agent": "streamlit-wisata-yogya"}
+        response = requests.get(url, headers=headers)
         if response.status_code == 200:
             data = response.json()
             return data.get("display_name", "Alamat tidak ditemukan")
@@ -34,7 +35,7 @@ def get_address(lat, lon):
         return "Alamat tidak ditemukan"
 
 # ============================
-# 3. Load Dataset
+# Load Dataset
 # ============================
 tour_csv_id = '11hQi3aqQkq5m2567jl7Ux1klXShLnYox'
 rating_csv_id = '14Bke4--cJi6bVrQng8HlpFihOFOPhGZJ'
@@ -42,7 +43,7 @@ tour_df = load_csv_from_drive(tour_csv_id)
 rating_df = load_csv_from_drive(rating_csv_id)
 
 # ============================
-# 4. Preprocessing
+# Preprocessing
 # ============================
 tour_df.dropna(subset=['Place_Id', 'Place_Name'], inplace=True)
 rating_df.dropna(subset=['User_Id', 'Place_Id', 'Place_Ratings'], inplace=True)
@@ -52,14 +53,14 @@ rating_df['Place_Id'] = rating_df['Place_Id'].astype(int).astype(str)
 rating_df['User_Id'] = rating_df['User_Id'].astype(str)
 
 # ============================
-# 5. Similarity Matrix
+# Similarity Matrix
 # ============================
 rating_matrix = rating_df.pivot_table(index='Place_Id', columns='User_Id', values='Place_Ratings').fillna(0)
 item_similarity = cosine_similarity(rating_matrix)
 item_similarity_df = pd.DataFrame(item_similarity, index=rating_matrix.index, columns=rating_matrix.index)
 
 # ============================
-# 6. Rekomendasi Function
+# Rekomendasi Function
 # ============================
 def get_recommendations(place_id, top_n=5):
     place_id = str(int(place_id))
@@ -78,28 +79,28 @@ def get_recommendation_by_name(place_name, top_n=5):
     return get_recommendations(place_id, top_n), origin
 
 # ============================
-# 7. Sidebar
+# Sidebar
 # ============================
-st.sidebar.header("🎒 Pilih Tempat Wisata")
+st.sidebar.header("Pilih Tempat Wisata")
 with st.sidebar.form(key='form_rekomendasi'):
     place_names = sorted(tour_df['Place_Name'].unique())
     selected_place = st.selectbox("Nama Tempat", place_names)
-    cari = st.form_submit_button("🔍 Cari Rekomendasi")
+    cari = st.form_submit_button("Cari Rekomendasi")
 
 # ============================
-# 8. Output
+# Output
 # ============================
-st.title("📍 Sistem Rekomendasi Tempat Wisata di Yogyakarta")
+st.title("Sistem Rekomendasi Tempat Wisata di Yogyakarta")
 
 if cari:
     rekomendasi_df, origin_place = get_recommendation_by_name(selected_place)
 
     if origin_place is not None:
-        st.markdown(f"### 🎯 Rekomendasi Mirip dengan: **{origin_place['Place_Name']}**")
+        st.markdown(f"Rekomendasi Mirip dengan: **{origin_place['Place_Name']}**")
         st.caption(f"Kategori: {origin_place['Category']} | Kota: {origin_place['City']}")
 
     if not rekomendasi_df.empty:
-        st.markdown("### ✨ Rekomendasi Wisata:")
+        st.markdown("Rekomendasi Wisata:")
 
         github_image_url = "https://raw.githubusercontent.com/abimanyuprimarendra/PIDB/main/yk.jpg"
 
@@ -108,10 +109,11 @@ if cari:
 
             with st.container():
                 st.markdown(f"""
-                <div style="display: flex; gap: 20px; margin-bottom: 30px;">
-                    <img src="{github_image_url}" style="width: 300px; height: 180px; object-fit: cover; border-radius: 10px;">
+                <div style="display: flex; gap: 20px; margin-bottom: 30px; 
+                            padding: 20px; background-color: #f9f9f9; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.08);">
+                    <img src="{github_image_url}" style="width: 320px; height: 200px; object-fit: cover; border-radius: 10px;">
                     <div style="flex: 1; text-align: left;">
-                        <h3 style="margin-bottom: 5px;">{row['Place_Name']}</h3>
+                        <h3 style="margin-bottom: 8px;">{row['Place_Name']}</h3>
                         <p style="margin: 0;"><b>Kategori:</b> {row['Category']}</p>
                         <p style="margin: 0;"><b>Kota:</b> {row['City']}</p>
                         <p style="margin: 0;"><b>Rating:</b> {row['Rating']}</p>
