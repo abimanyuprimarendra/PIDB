@@ -8,7 +8,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 st.set_page_config(page_title="Rekomendasi Wisata Jogja", layout="wide")
 
 # ============================
-# Load CSV dari Drive
+# Fungsi Load CSV dari Drive
 # ============================
 def load_csv_from_drive(file_id):
     url = f"https://drive.google.com/uc?export=download&id={file_id}"
@@ -19,7 +19,7 @@ def load_csv_from_drive(file_id):
     return pd.read_csv(io.StringIO(response.content.decode('utf-8')))
 
 # ============================
-# Reverse Geocoding dari Koordinat
+# Reverse Geocoding API
 # ============================
 @st.cache_data(show_spinner=False)
 def get_address(lat, lon):
@@ -60,7 +60,7 @@ item_similarity = cosine_similarity(rating_matrix)
 item_similarity_df = pd.DataFrame(item_similarity, index=rating_matrix.index, columns=rating_matrix.index)
 
 # ============================
-# Rekomendasi Function
+# Rekomendasi Functions
 # ============================
 def get_recommendations(place_id, top_n=5):
     place_id = str(int(place_id))
@@ -88,22 +88,19 @@ with st.sidebar.form(key='form_rekomendasi'):
     cari = st.form_submit_button("Cari Rekomendasi")
 
 # ============================
-# Output
+# Tampilan Hasil
 # ============================
-st.title("Sistem Rekomendasi Tempat Wisata di Yogyakarta")
+st.title("📍 Sistem Rekomendasi Tempat Wisata di Yogyakarta")
 
 if cari:
     rekomendasi_df, origin_place = get_recommendation_by_name(selected_place)
 
     if origin_place is not None:
-        st.markdown(f"### Rekomendasi Mirip dengan: **{origin_place['Place_Name']}**")
+        st.markdown(f"### 🎯 Rekomendasi Mirip dengan: **{origin_place['Place_Name']}**")
         st.caption(f"Kategori: {origin_place['Category']} | Kota: {origin_place['City']}")
 
     if not rekomendasi_df.empty:
-        github_image_url = "https://raw.githubusercontent.com/abimanyuprimarendra/PIDB/main/yk.jpg"
-
-        # Inject CSS untuk responsif layout
-              st.markdown("""
+        st.markdown("""
         <style>
         .card-row {
             display: flex;
@@ -112,20 +109,18 @@ if cari:
             gap: 20px;
             padding-bottom: 10px;
         }
-
         .card {
             background-color: #ffffff;
             border-radius: 10px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.08);
             width: 280px;
             min-width: 280px;
-            height: 420px;
+            height: 440px;
             flex-shrink: 0;
             display: flex;
             flex-direction: column;
             overflow: hidden;
         }
-
         .card img {
             width: 100%;
             height: 160px;
@@ -133,7 +128,6 @@ if cari:
             border-top-left-radius: 10px;
             border-top-right-radius: 10px;
         }
-
         .card-body {
             padding: 12px;
             text-align: left;
@@ -142,19 +136,16 @@ if cari:
             justify-content: space-between;
             height: 100%;
         }
-
         .description {
             font-size: 13px;
             max-height: 60px;
             overflow: hidden;
             text-overflow: ellipsis;
         }
-
         .info-text {
             font-size: 14px;
             margin: 2px 0;
         }
-
         .place-title {
             font-size: 16px;
             font-weight: bold;
@@ -164,6 +155,8 @@ if cari:
         """, unsafe_allow_html=True)
 
         st.markdown('<div class="card-row">', unsafe_allow_html=True)
+
+        github_image_url = "https://raw.githubusercontent.com/abimanyuprimarendra/PIDB/main/yk.jpg"
 
         for _, row in rekomendasi_df.iterrows():
             address = get_address(row['Latitude'], row['Longitude'])
