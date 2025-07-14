@@ -102,12 +102,11 @@ if cari:
     if not rekomendasi_df.empty:
         st.markdown("""
         <style>
-        .card-row {
+        .horizontal-scroll {
             display: flex;
-            flex-wrap: nowrap;
             overflow-x: auto;
             gap: 20px;
-            padding-bottom: 10px;
+            padding-bottom: 16px;
         }
         .card {
             background-color: #ffffff;
@@ -115,8 +114,8 @@ if cari:
             box-shadow: 0 4px 8px rgba(0,0,0,0.08);
             width: 280px;
             min-width: 280px;
-            height: 440px;
             flex-shrink: 0;
+            height: 460px;
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -136,25 +135,26 @@ if cari:
             justify-content: space-between;
             height: 100%;
         }
-        .description {
-            font-size: 13px;
-            max-height: 60px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .info-text {
-            font-size: 14px;
-            margin: 2px 0;
-        }
         .place-title {
             font-size: 16px;
             font-weight: bold;
             margin-bottom: 6px;
         }
+        .info-text {
+            font-size: 13px;
+            margin: 3px 0;
+        }
+        .description {
+            font-size: 12px;
+            color: #444;
+            max-height: 60px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
         </style>
         """, unsafe_allow_html=True)
 
-        st.markdown('<div class="card-row">', unsafe_allow_html=True)
+        st.markdown('<div class="horizontal-scroll">', unsafe_allow_html=True)
 
         github_image_url = "https://raw.githubusercontent.com/abimanyuprimarendra/PIDB/main/yk.jpg"
 
