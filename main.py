@@ -91,20 +91,14 @@ if cari:
     if not rekomendasi_df.empty:
         st.markdown("### ✨ Rekomendasi Wisata:")
         col1, col2, col3, col4, col5 = st.columns(5)
-        col_list = [col1, col2, col3, col4, col5]
 
+        col_list = [col1, col2, col3, col4, col5]
         for idx, (_, row) in enumerate(rekomendasi_df.iterrows()):
             with col_list[idx]:
-                image_url = row.get('Image_URL', None)
-                if image_url:
-                    st.image(image_url, use_column_width=True)
-                else:
-                    st.image("https://via.placeholder.com/200x150.png?text=No+Image", use_column_width=True)
-
                 st.markdown(f"""
-                    <div style="background-color: #f9f9f9; border-radius: 12px; padding: 10px; margin-top: 10px;
-                                box-shadow: 0 4px 8px rgba(0,0,0,0.1); text-align: center;">
-                        <h4 style="font-size:16px; margin-bottom:5px;">{row['Place_Name']}</h4>
+                    <div style="background-color: #f9f9f9; border-radius: 15px; padding: 15px; 
+                                box-shadow: 0 4px 8px rgba(0,0,0,0.1); min-height: 150px;">
+                        <h4 style="margin-bottom: 10px;">{row['Place_Name']}</h4>
                         <p style="margin: 0;">Kategori: <b>{row['Category']}</b></p>
                         <p style="margin: 0;">Kota: <b>{row['City']}</b></p>
                         <p style="margin: 0;">⭐ Rating: <b>{row['Rating']}</b></p>
@@ -114,8 +108,3 @@ if cari:
         st.warning("Tempat wisata tidak ditemukan.")
     else:
         st.info("Tidak ada rekomendasi ditemukan.")
-
-
-
-
-
