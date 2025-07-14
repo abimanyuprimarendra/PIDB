@@ -63,21 +63,7 @@ def get_recommendation_by_name(place_name, top_n=5):
     return get_recommendations(place_id, top_n), origin
 
 # ============================
-# 6. Get Address from Coordinate
-# ============================
-@st.cache_data(show_spinner=False)
-def get_address(lat, lon):
-    try:
-        response = requests.get(f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lon}&zoom=16&addressdetails=1", headers={'User-Agent': 'Mozilla/5.0'})
-        if response.status_code == 200:
-            data = response.json()
-            return data.get("display_name", "Alamat tidak ditemukan")
-    except:
-        return "Alamat tidak ditemukan"
-    return "Alamat tidak ditemukan"
-
-# ============================
-# 7. Sidebar + Form Submit
+# 6. Sidebar + Form Submit
 # ============================
 st.sidebar.header("🎒 Pilih Tempat Wisata")
 with st.sidebar.form(key='form_rekomendasi'):
@@ -86,7 +72,7 @@ with st.sidebar.form(key='form_rekomendasi'):
     cari = st.form_submit_button("🔍 Cari Rekomendasi")
 
 # ============================
-# 8. Output
+# 7. Output
 # ============================
 st.title("📍 Sistem Rekomendasi Tempat Wisata di Yogyakarta")
 
@@ -104,30 +90,36 @@ if cari:
         image_url = "https://raw.githubusercontent.com/abimanyuprimarendra/PIDB/main/yk.jpg"
 
         card_style = """
-            background-color: #f9f9f9;
+            background-color: #ffffff;
             border-radius: 15px;
             padding: 12px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            min-height: 450px;
+            min-height: 420px;
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
             align-items: center;
+            text-align: left;
         """
-        image_style = "width: 100%; height: 150px; object-fit: cover; border-radius: 10px; margin-bottom: 10px; font-size:14px;"
+        image_style = "width: 100%; height: 150px; object-fit: cover; border-radius: 10px; margin-bottom: 10px;"
+        title_style = "font-weight: bold; font-size: 18px; margin-bottom: 5px; text-align:left; width:100%;"
+        text_style = "font-size: 13px; margin: 2px 0; width:100%;"
 
         for idx, (_, row) in enumerate(rekomendasi_df.iterrows()):
             with cols[idx]:
-                alamat = get_address(row['Latitude'], row['Longitude'])
+                place_name = row['Place_Name']
+                category = row['Category']
+                rating = row['Rating']
+                description = row.get('Description', 'Tidak ada deskripsi')
+                truncated_description = (description[:120] + "....") if len(description) > 120 else description
+
                 st.markdown(f"""
                     <div style="{card_style}">
                         <img src="{image_url}" style="{image_style}" />
-                        <h4 style="margin-bottom: 5px; min-height: 40px; text-align:center;">{row['Place_Name']}</h4>
-                        <p style="font-size:13px; min-height: 40px;">{row['Description'][:80]}...</p>
-                        <p style="margin: 0; font-size:13px;">Kategori: <b>{row['Category']}</b></p>
-                        <p style="margin: 0; font-size:13px;">Kota: <b>{row['City']}</b></p>
-                        <p style="margin: 0; font-size:13px;">⭐ Rating: <b>{row['Rating']}</b></p>
-                        <p style="margin-top:10px; font-size:12px; color:#555;">📍 {alamat}</p>
+                        <div style="{title_style}">🎯 {place_name}</div>
+                        <div style="{text_style}"><b>Genre:</b> {category}</div>
+                        <div style="{text_style}"><b>Rating:</b> {rating}</div>
+                        <div style="{text_style}">{truncated_description}</div>
                     </div>
                 """, unsafe_allow_html=True)
 
