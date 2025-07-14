@@ -85,7 +85,7 @@ if cari:
     if not rekomendasi_df.empty:
         st.markdown("### 5 Rekomendasi Tempat Wisata:")
 
-        # Styling CSS
+        # Styling CSS untuk horizontal card scroll
         st.markdown("""
         <style>
         .scroll-container {
@@ -93,6 +93,7 @@ if cari:
             overflow-x: auto;
             gap: 20px;
             padding-bottom: 10px;
+            margin-top: 15px;
         }
         .scroll-container::-webkit-scrollbar {
             height: 8px;
@@ -139,14 +140,14 @@ if cari:
         </style>
         """, unsafe_allow_html=True)
 
-        st.markdown('<div class="scroll-container">', unsafe_allow_html=True)
-
+        # Buat HTML dari semua card dan tampilkan dalam 1 container horizontal
         github_image_url = "https://raw.githubusercontent.com/abimanyuprimarendra/PIDB/main/yk.jpg"
+        cards_html = ""
 
         for _, row in rekomendasi_df.iterrows():
             address = get_address(row['Latitude'], row['Longitude'])
             description = row.get("Description", "")
-            st.markdown(f"""
+            cards_html += f"""
                 <div class="card">
                     <img src="{github_image_url}">
                     <div class="card-content">
@@ -158,9 +159,9 @@ if cari:
                         <p class="description">{description}</p>
                     </div>
                 </div>
-            """, unsafe_allow_html=True)
+            """
 
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="scroll-container">{cards_html}</div>', unsafe_allow_html=True)
 
     elif origin_place is None:
         st.warning("Tempat wisata tidak ditemukan.")
