@@ -52,9 +52,7 @@ def get_recommendations(place_id, top_n=5):
         return pd.DataFrame()
     similar_scores = item_similarity_df[place_id].sort_values(ascending=False).drop(place_id)
     top_places = similar_scores.head(top_n).index.tolist()
-    return tour_df[tour_df['Place_Id'].isin(top_places)][
-        ['Place_Name', 'Category', 'City', 'Rating']
-    ]
+    return tour_df[tour_df['Place_Id'].isin(top_places)]
 
 def get_recommendation_by_name(place_name, top_n=5):
     match = tour_df[tour_df['Place_Name'].str.lower() == place_name.lower()]
@@ -65,7 +63,21 @@ def get_recommendation_by_name(place_name, top_n=5):
     return get_recommendations(place_id, top_n), origin
 
 # ============================
-# 6. Sidebar + Form Submit
+# 6. Get Address from Coordinate
+# ============================
+@st.cache_data(show_spinner=False)
+def get_address(lat, lon):
+    try:
+        response = requests.get(f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lon}&zoom=16&addressdetails=1", headers={'User-Agent': 'Mozilla/5.0'})
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("display_name", "Alamat tidak ditemukan")
+    except:
+        return "Alamat tidak ditemukan"
+    return "Alamat tidak ditemukan"
+
+# ============================
+# 7. Sidebar + Form Submit
 # ============================
 st.sidebar.header("🎒 Pilih Tempat Wisata")
 with st.sidebar.form(key='form_rekomendasi'):
@@ -74,7 +86,7 @@ with st.sidebar.form(key='form_rekomendasi'):
     cari = st.form_submit_button("🔍 Cari Rekomendasi")
 
 # ============================
-# 7. Output
+# 8. Output
 # ============================
 st.title("📍 Sistem Rekomendasi Tempat Wisata di Yogyakarta")
 
@@ -87,36 +99,35 @@ if cari:
 
     if not rekomendasi_df.empty:
         st.markdown("### ✨ Rekomendasi Wisata:")
-        col1, col2, col3, col4, col5 = st.columns(5)
-        col_list = [col1, col2, col3, col4, col5]
+        cols = st.columns(5)
 
-        # URL gambar GitHub (sama untuk semua)
         image_url = "https://raw.githubusercontent.com/abimanyuprimarendra/PIDB/main/yk.jpg"
 
-        # Styling
         card_style = """
             background-color: #f9f9f9;
             border-radius: 15px;
-            padding: 10px;
+            padding: 12px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            min-height: 370px;
+            min-height: 450px;
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
             align-items: center;
         """
-
-        image_style = "width: 100%; height: 150px; object-fit: cover; border-radius: 10px; margin-bottom: 10px;"
+        image_style = "width: 100%; height: 150px; object-fit: cover; border-radius: 10px; margin-bottom: 10px; font-size:14px;"
 
         for idx, (_, row) in enumerate(rekomendasi_df.iterrows()):
-            with col_list[idx]:
+            with cols[idx]:
+                alamat = get_address(row['Latitude'], row['Longitude'])
                 st.markdown(f"""
                     <div style="{card_style}">
                         <img src="{image_url}" style="{image_style}" />
                         <h4 style="margin-bottom: 5px; min-height: 40px; text-align:center;">{row['Place_Name']}</h4>
-                        <p style="margin: 0; min-height: 20px;">Kategori: <b>{row['Category']}</b></p>
-                        <p style="margin: 0; min-height: 20px;">Kota: <b>{row['City']}</b></p>
-                        <p style="margin: 0; margin-top: 10px;">⭐ Rating: <b>{row['Rating']}</b></p>
+                        <p style="font-size:13px; min-height: 40px;">{row['Description'][:80]}...</p>
+                        <p style="margin: 0; font-size:13px;">Kategori: <b>{row['Category']}</b></p>
+                        <p style="margin: 0; font-size:13px;">Kota: <b>{row['City']}</b></p>
+                        <p style="margin: 0; font-size:13px;">⭐ Rating: <b>{row['Rating']}</b></p>
+                        <p style="margin-top:10px; font-size:12px; color:#555;">📍 {alamat}</p>
                     </div>
                 """, unsafe_allow_html=True)
 
