@@ -87,10 +87,10 @@ if cari:
         st.markdown("### ✨ Rekomendasi Wisata:")
         cols = st.columns(5)
 
-        # Gunakan 1 gambar default untuk semua tempat
+        # Gambar default
         image_url = "https://raw.githubusercontent.com/abimanyuprimarendra/PIDB/main/yk.jpg"
 
-        # CSS Styling
+        # Styling
         card_style = """
             background-color: #ffffff;
             border-radius: 15px;
@@ -108,29 +108,27 @@ if cari:
         title_style = "font-weight: bold; font-size: 16px; color: #222222; margin: 0;"
         text_style = "font-size: 13px; color: #444444; margin: 0; line-height: 1.4;"
 
-        # Loop rekomendasi dan tampilkan dalam card
-for idx, (_, row) in enumerate(rekomendasi_df.iterrows()):
-    with cols[idx]:
-        place_name = row['Place_Name']
-        category = row['Category']
-        rating = row['Rating']
-        description = row.get('Description', 'Tidak ada deskripsi')
-        truncated_description = (description[:300] + "....") if len(description) > 300 else description
+        for idx, (_, row) in enumerate(rekomendasi_df.iterrows()):
+            with cols[idx]:
+                place_name = row['Place_Name']
+                category = row['Category']
+                rating = row['Rating']
+                description = row.get('Description', 'Tidak ada deskripsi')
+                truncated_description = (description[:300] + "....") if len(description) > 300 else description
 
-        st.markdown(f"""
-            <div style="{card_style}">
-                <img src="{image_url}" style="{image_style}" />
-                <div style="{content_wrapper}">
-                    <p style="{title_style}">{place_name}</p>
-                    <p style="{text_style}"><b>Kategori:</b> {category}</p>
-                    <p style="{text_style}"><b>Rating:</b> {rating}</p>
-                    <p style="{text_style} overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;">
-                        {truncated_description}
-                    </p>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-
+                st.markdown(f"""
+                    <div style="{card_style}">
+                        <img src="{image_url}" style="{image_style}" />
+                        <div style="{content_wrapper}">
+                            <p style="{title_style}">{place_name}</p>
+                            <p style="{text_style}"><b>Kategori:</b> {category}</p>
+                            <p style="{text_style}"><b>Rating:</b> {rating}</p>
+                            <p style="{text_style} overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;">
+                                {truncated_description}
+                            </p>
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
 
     elif origin_place is None:
         st.warning("Tempat wisata tidak ditemukan.")
