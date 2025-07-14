@@ -90,22 +90,21 @@ if cari:
         col1, col2, col3, col4, col5 = st.columns(5)
         col_list = [col1, col2, col3, col4, col5]
 
-        # Gunakan gambar yang sama untuk semua card
         github_image_url = "https://raw.githubusercontent.com/abimanyuprimarendra/PIDB/main/yk.jpg"
 
         card_style = """
             background-color: #ffffff;
             border-radius: 15px;
-            padding: 10px;
+            padding: 12px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            height: 370px;
+            height: 390px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            text-align: center;
+            text-align: left;
         """
 
-        img_style = "width: 100%; height: 150px; object-fit: cover; border-radius: 10px; margin-bottom: 10px;"
+        img_style = "width: 100%; height: 160px; object-fit: cover; border-radius: 10px; margin-bottom: 10px;"
 
         for idx, (_, row) in enumerate(rekomendasi_df.iterrows()):
             with col_list[idx]:
