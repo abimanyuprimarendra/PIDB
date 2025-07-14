@@ -33,12 +33,14 @@ item_similarity_df = pd.DataFrame(item_similarity_matrix, index=pivot_table.colu
 place_names = tours_df.set_index('Place_Id')['Place_Name'].to_dict()
 place_name_to_id = {v: k for k, v in place_names.items()}
 
+# Fungsi rekomendasi 5 tempat berbeda (selain yang dipilih)
 def recommend_similar_places_by_category(place_id, similarity_df, tours_df, top_n=5):
     if place_id not in similarity_df or place_id not in tours_df['Place_Id'].values:
         return pd.DataFrame()
     selected_category = tours_df.loc[tours_df['Place_Id'] == place_id, 'Category'].values[0]
     sim_scores = similarity_df[place_id].sort_values(ascending=False)
-    candidate_ids = sim_scores.iloc[1:top_n*3].index
+    sim_scores = sim_scores.drop(index=place_id)  # Hilangkan tempat itu sendiri
+    candidate_ids = sim_scores.index
     candidate_df = tours_df[tours_df['Place_Id'].isin(candidate_ids)]
     filtered_df = candidate_df[candidate_df['Category'] == selected_category]
     return filtered_df[['Place_Name', 'Category', 'City', 'Description', 'Price']].head(top_n).reset_index(drop=True)
@@ -48,27 +50,33 @@ st.sidebar.title("📌 Pilih Tempat Wisata")
 selected_place_name = st.sidebar.selectbox("Nama Tempat", [""] + list(place_name_to_id.keys()))
 cari_button = st.sidebar.button("🔍 Cari Rekomendasi")
 
-# CSS custom untuk card
+# CSS custom untuk horizontal card
 st.markdown("""
 <style>
-.card {
+.card-container {
     background-color: white;
     border-radius: 12px;
-    padding: 20px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    text-align: center;
-    margin: 10px;
-    height: 100%;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    display: flex;
+    padding: 15px;
+    margin-bottom: 15px;
 }
-.card img {
-    width: 60px;
-    margin-bottom: 10px;
+.card-container img {
+    border-radius: 10px;
+    width: 120px;
+    height: 120px;
+    object-fit: cover;
+    margin-right: 20px;
+}
+.card-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 .card-title {
     font-size: 18px;
     font-weight: bold;
-    color: #333;
-    margin: 0 0 10px 0;
+    margin-bottom: 5px;
 }
 .card-body {
     font-size: 14px;
@@ -77,30 +85,30 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Rekomendasi ditampilkan jika tombol diklik
+# Tampilkan rekomendasi jika tombol ditekan
 if cari_button and selected_place_name != "":
     selected_place_id = place_name_to_id[selected_place_name]
     recs = recommend_similar_places_by_category(selected_place_id, item_similarity_df, tours_df, top_n=5)
 
-    st.markdown(f"### ✨ 5 Rekomendasi Tempat Mirip **'{selected_place_name}'**")
+    st.markdown(f"### ✨ 5 Tempat Serupa Selain **'{selected_place_name}'**")
 
     if recs.empty:
         st.info("Tidak ditemukan rekomendasi.")
     else:
-        cols = st.columns(len(recs))  # 1 baris horizontal
-        for i, row in recs.iterrows():
-            with cols[i]:
-                st.markdown(f"""
-                <div class="card">
-                    <img src="https://static.thenounproject.com/png/3305605-200.png" alt="icon">
+        for _, row in recs.iterrows():
+            st.markdown(f"""
+            <div class="card-container">
+                <img src="https://raw.githubusercontent.com/abimanyuprimarendra/PIDB/main/yk.jpg" alt="wisata">
+                <div class="card-content">
                     <div class="card-title">{row['Place_Name']}</div>
                     <div class="card-body">
                         <b>Kategori:</b> {row['Category']}<br>
                         <b>Kota:</b> {row['City']}<br>
                         <b>Harga:</b> Rp{int(row['Price']):,}<br>
-                        <div style='margin-top:10px'>{row['Description'][:120]}...</div>
+                        <div style='margin-top:6px'>{row['Description'][:150]}...</div>
                     </div>
                 </div>
-                """, unsafe_allow_html=True)
+            </div>
+            """, unsafe_allow_html=True)
 else:
     st.empty()
