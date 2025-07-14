@@ -6,7 +6,7 @@ import io
 from sklearn.metrics.pairwise import cosine_similarity
 
 st.set_page_config(layout="wide")
-st.title("🎯 Sistem Rekomendasi Tempat Wisata Yogyakarta")
+st.title("🍿 Sistem Rekomendasi Tempat Wisata Yogyakarta")
 
 # Load CSV dari Google Drive
 def load_csv_from_drive(file_id):
@@ -20,8 +20,6 @@ def load_csv_from_drive(file_id):
 # ID file dataset
 tour_csv_id = '11hQi3aqQkq5m2567jl7Ux1klXShLnYox'
 rating_csv_id = '14Bke4--cJi6bVrQng8HlpFihOFOPhGZJ'
-
-# Load data
 tours_df = load_csv_from_drive(tour_csv_id)
 ratings_df = load_csv_from_drive(rating_csv_id)
 if tours_df.empty or ratings_df.empty:
@@ -50,29 +48,32 @@ st.sidebar.title("📌 Pilih Tempat Wisata")
 selected_place_name = st.sidebar.selectbox("Nama Tempat", [""] + list(place_name_to_id.keys()))
 cari_button = st.sidebar.button("🔍 Cari Rekomendasi")
 
-# CSS: layout horizontal card dalam kolom
+# CSS mirip seperti gambar yang kamu kirim
 st.markdown("""
 <style>
-.card {
+.card-movie {
     background-color: white;
-    border-radius: 10px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    padding: 12px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    border-radius: 16px;
+    box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+    padding: 16px;
+    text-align: left;
     height: 100%;
-    text-align: center;
+    transition: 0.3s ease;
 }
-.card img {
+.card-movie:hover {
+    transform: scale(1.03);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+}
+.card-movie img {
     width: 100%;
-    border-radius: 8px;
+    height: 160px;
     object-fit: cover;
+    border-radius: 10px;
     margin-bottom: 10px;
 }
 .card-title {
+    font-size: 17px;
     font-weight: bold;
-    font-size: 16px;
     margin-bottom: 6px;
 }
 .card-body {
@@ -87,7 +88,7 @@ if cari_button and selected_place_name != "":
     selected_place_id = place_name_to_id[selected_place_name]
     recs = recommend_similar_places_by_category(selected_place_id, item_similarity_df, tours_df, top_n=5)
 
-    st.markdown(f"### ✨ 5 Tempat Serupa **'{selected_place_name}'**")
+    st.markdown(f"### 🍿 5 Rekomendasi Tempat Mirip **'{selected_place_name}'**")
 
     if recs.empty:
         st.info("Tidak ditemukan rekomendasi.")
@@ -96,14 +97,14 @@ if cari_button and selected_place_name != "":
         for i, row in recs.iterrows():
             with cols[i]:
                 st.markdown(f"""
-                <div class="card">
+                <div class="card-movie">
                     <img src="https://raw.githubusercontent.com/abimanyuprimarendra/PIDB/main/yk.jpg" alt="img">
-                    <div class="card-title">{row['Place_Name']}</div>
+                    <div class="card-title">🎬 {row['Place_Name']}</div>
                     <div class="card-body">
-                        <b>Kategori:</b> {row['Category']}<br>
+                        <b>Genre:</b> {row['Category']}<br>
                         <b>Kota:</b> {row['City']}<br>
                         <b>Harga:</b> Rp{int(row['Price']):,}<br>
-                        <div style='margin-top:6px'>{row['Description'][:100]}...</div>
+                        <div style='margin-top:8px;'>{row['Description'][:140]}...</div>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
