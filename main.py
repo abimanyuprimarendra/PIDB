@@ -95,7 +95,7 @@ if cari:
             border-radius: 15px;
             padding: 15px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            min-height: 220px;
+            height: 350px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
