@@ -65,7 +65,7 @@ def get_recommendation_by_name(place_name, top_n=5):
 # ============================
 # 6. Sidebar + Form Submit
 # ============================
-st.sidebar.header("Pilih Tempat Wisata")
+st.sidebar.header("🎒 Pilih Tempat Wisata")
 with st.sidebar.form(key='form_rekomendasi'):
     place_names = sorted(tour_df['Place_Name'].unique())
     selected_place = st.selectbox("Nama Tempat", place_names)
@@ -74,17 +74,17 @@ with st.sidebar.form(key='form_rekomendasi'):
 # ============================
 # 7. Output
 # ============================
-st.title("Sistem Rekomendasi Tempat Wisata di Yogyakarta")
+st.title("📍 Sistem Rekomendasi Tempat Wisata di Yogyakarta")
 
 if cari:
     rekomendasi_df, origin_place = get_recommendation_by_name(selected_place)
 
     if origin_place is not None:
-        st.markdown(f"Rekomendasi Mirip dengan: **{origin_place['Place_Name']}**")
+        st.markdown(f"### 🎯 Rekomendasi Mirip dengan: **{origin_place['Place_Name']}**")
         st.caption(f"Kategori: {origin_place['Category']} | Kota: {origin_place['City']}")
 
-       if not rekomendasi_df.empty:
-        st.markdown("### Rekomendasi Wisata:")
+    if not rekomendasi_df.empty:
+        st.markdown("### ✨ Rekomendasi Wisata:")
         cols = st.columns(5)
 
         image_url = "https://raw.githubusercontent.com/abimanyuprimarendra/PIDB/main/yk.jpg"
@@ -92,7 +92,7 @@ if cari:
         card_style = """
             background-color: #ffffff;
             border-radius: 15px;
-            padding: 12px;
+            padding: 16px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
             height: 100%;
             display: flex;
@@ -102,8 +102,8 @@ if cari:
             text-align: left;
         """
         image_style = "width: 100%; height: 150px; object-fit: cover; border-radius: 10px; margin-bottom: 10px;"
-        title_style = "font-weight: 600; font-size: 16px; margin-bottom: 5px;"
-        text_style = "font-size: 13px; margin: 2px 0; line-height: 1.4;"
+        title_style = "font-weight: 600; font-size: 16px; margin-bottom: 8px;"
+        text_style = "font-size: 13px; margin: 3px 0; line-height: 1.4;"
 
         for idx, (_, row) in enumerate(rekomendasi_df.iterrows()):
             with cols[idx]:
@@ -122,7 +122,6 @@ if cari:
                         <div style="{text_style}">{truncated_description}</div>
                     </div>
                 """, unsafe_allow_html=True)
-
 
     elif origin_place is None:
         st.warning("Tempat wisata tidak ditemukan.")
