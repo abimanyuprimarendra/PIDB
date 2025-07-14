@@ -89,8 +89,9 @@ if selected_place:
         cards_html = ""
         for _, row in rekomendasi_df.iterrows():
             cards_html += f"""
-            <div style="flex: 0 0 20%; background-color: #f9f9f9; border-radius: 12px;
-                        margin: 10px; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <div style="flex: 0 0 auto; min-width: 220px; background-color: #f9f9f9;
+                        border-radius: 12px; margin: 10px; padding: 15px;
+                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
                 <h4 style="margin-bottom: 5px;">{row['Place_Name']}</h4>
                 <p style="margin: 0;">Kategori: <b>{row['Category']}</b></p>
                 <p style="margin: 0;">Kota: <b>{row['City']}</b></p>
@@ -98,10 +99,10 @@ if selected_place:
             </div>
             """
 
-        # Bungkus semua kartu dalam kontainer horizontal
+        # Container utama untuk scroll horizontal
         container = f"""
-        <div style="display: flex; flex-direction: row; justify-content: space-between;
-                    flex-wrap: nowrap; overflow-x: auto;">
+        <div style="display: flex; flex-direction: row; flex-wrap: nowrap;
+                    overflow-x: auto; padding: 10px;">
             {cards_html}
         </div>
         """
