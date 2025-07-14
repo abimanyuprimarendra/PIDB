@@ -67,16 +67,16 @@ def get_recommendation_by_name(place_name, top_n=5):
 # ============================
 # 6. Sidebar + Form Submit
 # ============================
-st.sidebar.header("🎒 Pilih Tempat Wisata")
+st.sidebar.header("Pilih Tempat Wisata")
 with st.sidebar.form(key='form_rekomendasi'):
     place_names = sorted(tour_df['Place_Name'].unique())
     selected_place = st.selectbox("Nama Tempat", place_names)
-    cari = st.form_submit_button("🔍 Cari Rekomendasi")
+    cari = st.form_submit_button("Cari Rekomendasi")
 
 # ============================
 # 7. Output
 # ============================
-st.title("📍 Sistem Rekomendasi Tempat Wisata di Yogyakarta")
+st.title("Sistem Rekomendasi Tempat Wisata di Yogyakarta")
 
 if cari:
     rekomendasi_df, origin_place = get_recommendation_by_name(selected_place)
