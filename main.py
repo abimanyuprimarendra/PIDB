@@ -101,7 +101,7 @@ if cari:
             align-items: flex-start;
             text-align: left;
         """
-        image_style = "width: 100%; height: 150px; object-fit: cover; border-radius: 10px; margin-bottom: 10px;"
+        image_style = "width: 100%; height: 150px; object-fit: cover; border-radius: 15px; margin-bottom: 10px;"
         title_style = "font-weight: 600; font-size: 16px; margin-bottom: 8px;"
         text_style = "font-size: 13px; margin: 3px 0; line-height: 1.4;"
 
