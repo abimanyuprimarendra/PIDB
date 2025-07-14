@@ -106,7 +106,7 @@ if cari:
 
         for idx, (_, row) in enumerate(rekomendasi_df.iterrows()):
             with col_list[idx]:
-                image_url = row.get('image', '')
+                image_url = row.get('image', 'https://github.com/abimanyuprimarendra/PIDB/blob/main/yk.jpg')
                 st.markdown(f"""
                     <div style="{card_style}">
                         <img src="{image_url}" style="{img_style}" onerror="this.src='https://via.placeholder.com/300x150?text=No+Image'">
