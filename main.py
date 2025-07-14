@@ -96,32 +96,85 @@ if cari:
     rekomendasi_df, origin_place = get_recommendation_by_name(selected_place)
 
     if origin_place is not None:
-        st.markdown(f"Rekomendasi Mirip dengan: **{origin_place['Place_Name']}**")
+        st.markdown(f"### Rekomendasi Mirip dengan: **{origin_place['Place_Name']}**")
         st.caption(f"Kategori: {origin_place['Category']} | Kota: {origin_place['City']}")
 
     if not rekomendasi_df.empty:
-        st.markdown("Rekomendasi Wisata:")
-
         github_image_url = "https://raw.githubusercontent.com/abimanyuprimarendra/PIDB/main/yk.jpg"
+
+        # Inject CSS untuk responsif layout
+        st.markdown("""
+        <style>
+        .card-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+        }
+
+        .card {
+            background-color: #f9f9f9;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+            padding: 15px;
+            display: flex;
+            flex-direction: row;
+            gap: 15px;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .card img {
+            width: 280px;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 10px;
+        }
+
+        .card-content {
+            flex: 1;
+            text-align: left;
+        }
+
+        @media (max-width: 768px) {
+            .card {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .card img {
+                width: 100%;
+                height: auto;
+            }
+
+            .card-content {
+                text-align: center;
+            }
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
+        st.markdown('<div class="card-container">', unsafe_allow_html=True)
 
         for _, row in rekomendasi_df.iterrows():
             address = get_address(row['Latitude'], row['Longitude'])
+            description = row.get('Description', '')
 
-            with st.container():
-                st.markdown(f"""
-                <div style="display: flex; gap: 20px; margin-bottom: 30px; 
-                            padding: 20px; background-color: #f9f9f9; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.08);">
-                    <img src="{github_image_url}" style="width: 320px; height: 360px; object-fit: cover; border-radius: 10px;">
-                    <div style="flex: 1; text-align: left;">
-                        <h3 style="margin-bottom: 8px;">{row['Place_Name']}</h3>
-                        <p style="margin: 0;"><b>Kategori:</b> {row['Category']}</p>
-                        <p style="margin: 0;"><b>Kota:</b> {row['City']}</p>
-                        <p style="margin: 0;"><b>Rating:</b> {row['Rating']}</p>
-                        <p style="margin-top: 10px;"><b>Alamat:</b> {address}</p>
-                        <p style="margin-top: 10px;">{row.get('Description', '')}</p>
-                    </div>
+            st.markdown(f"""
+            <div class="card">
+                <img src="{github_image_url}">
+                <div class="card-content">
+                    <h3>{row['Place_Name']}</h3>
+                    <p><b>Kategori:</b> {row['Category']}</p>
+                    <p><b>Kota:</b> {row['City']}</p>
+                    <p><b>Rating:</b> {row['Rating']}</p>
+                    <p><b>Alamat:</b> {address}</p>
+                    <p>{description}</p>
                 </div>
-                """, unsafe_allow_html=True)
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown('</div>', unsafe_allow_html=True)
 
     elif origin_place is None:
         st.warning("Tempat wisata tidak ditemukan.")
