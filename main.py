@@ -5,13 +5,11 @@ import requests
 import io
 from sklearn.metrics.pairwise import cosine_similarity
 
-st.set_page_config(page_title="Rekomendasi Wisata Jogja", layout="centered")
-st.title("🎯 Sistem Rekomendasi Tempat Wisata di Yogyakarta")
-st.caption("Metode: Item-Based Collaborative Filtering (IBCF)")
+st.set_page_config(page_title="Rekomendasi Wisata Jogja", layout="wide")
 
-# =========================
-# 1. Load Data dari Google Drive
-# =========================
+# ===================================
+# 1. Fungsi Load CSV dari Google Drive
+# ===================================
 def load_csv_from_drive(file_id):
     url = f"https://drive.google.com/uc?export=download&id={file_id}"
     response = requests.get(url)
@@ -20,17 +18,17 @@ def load_csv_from_drive(file_id):
         return pd.DataFrame()
     return pd.read_csv(io.StringIO(response.content.decode('utf-8')))
 
-# File ID Google Drive
+# ===================================
+# 2. Load Data
+# ===================================
 tour_csv_id = '11hQi3aqQkq5m2567jl7Ux1klXShLnYox'
 rating_csv_id = '14Bke4--cJi6bVrQng8HlpFihOFOPhGZJ'
-
-# Load datasets
 tour_df = load_csv_from_drive(tour_csv_id)
 rating_df = load_csv_from_drive(rating_csv_id)
 
-# =========================
-# 2. Preprocessing
-# =========================
+# ===================================
+# 3. Preprocessing
+# ===================================
 tour_df.dropna(subset=['Place_Id', 'Place_Name'], inplace=True)
 rating_df.dropna(subset=['User_Id', 'Place_Id', 'Place_Ratings'], inplace=True)
 
@@ -38,16 +36,16 @@ tour_df['Place_Id'] = tour_df['Place_Id'].astype(int).astype(str)
 rating_df['Place_Id'] = rating_df['Place_Id'].astype(int).astype(str)
 rating_df['User_Id'] = rating_df['User_Id'].astype(str)
 
-# =========================
-# 3. Matriks Rating & Similarity
-# =========================
+# ===================================
+# 4. Matriks & Similarity
+# ===================================
 rating_matrix = rating_df.pivot_table(index='Place_Id', columns='User_Id', values='Place_Ratings').fillna(0)
 item_similarity = cosine_similarity(rating_matrix)
 item_similarity_df = pd.DataFrame(item_similarity, index=rating_matrix.index, columns=rating_matrix.index)
 
-# =========================
-# 4. Fungsi Rekomendasi
-# =========================
+# ===================================
+# 5. Fungsi Rekomendasi
+# ===================================
 def get_recommendations(place_id, top_n=5):
     place_id = str(int(place_id))
     if place_id not in item_similarity_df.index:
@@ -55,7 +53,6 @@ def get_recommendations(place_id, top_n=5):
 
     similar_scores = item_similarity_df[place_id].sort_values(ascending=False).drop(place_id)
     top_places = similar_scores.head(top_n).index.tolist()
-
     return tour_df[tour_df['Place_Id'].isin(top_places)][
         ['Place_Name', 'Category', 'City', 'Rating']
     ]
@@ -63,24 +60,51 @@ def get_recommendations(place_id, top_n=5):
 def get_recommendation_by_name(place_name, top_n=5):
     match = tour_df[tour_df['Place_Name'].str.lower() == place_name.lower()]
     if match.empty:
-        st.warning(f"Tempat '{place_name}' tidak ditemukan.")
-        return pd.DataFrame()
-    
+        return pd.DataFrame(), None
+
     place_id = match['Place_Id'].values[0]
     origin = match.iloc[0]
-    st.success(f"📍 Tempat Asal: {origin['Place_Name']} ({origin['Category']}, {origin['City']})")
-    return get_recommendations(place_id, top_n)
+    return get_recommendations(place_id, top_n), origin
 
-# =========================
-# 5. UI Streamlit
-# =========================
-st.subheader("Cari Rekomendasi Berdasarkan Nama Tempat")
-
+# ===================================
+# 6. Sidebar UI
+# ===================================
+st.sidebar.header("🎒 Pilih Tempat Wisata")
 place_names = sorted(tour_df['Place_Name'].unique())
-selected_place = st.selectbox("Pilih Tempat Wisata", place_names)
+selected_place = st.sidebar.selectbox("Tempat Wisata", place_names)
 
-if st.button("Tampilkan Rekomendasi"):
-    rekomendasi_df = get_recommendation_by_name(selected_place)
+# ===================================
+# 7. Tampilkan Hasil di Halaman Utama
+# ===================================
+st.title("📍 Sistem Rekomendasi Tempat Wisata di Yogyakarta")
+
+if selected_place:
+    rekomendasi_df, origin_place = get_recommendation_by_name(selected_place)
+
+    if origin_place is not None:
+        st.markdown(f"### 🎯 5 Rekomendasi Mirip dengan: **{origin_place['Place_Name']}**")
+        st.caption(f"Kategori: {origin_place['Category']} | Kota: {origin_place['City']}")
+
     if not rekomendasi_df.empty:
-        st.write("🎯 **5 Tempat Wisata yang Direkomendasikan:**")
-        st.dataframe(rekomendasi_df, use_container_width=True)
+        cards_html = ""
+        for _, row in rekomendasi_df.iterrows():
+            cards_html += f"""
+            <div style="flex: 0 0 20%; background-color: #f9f9f9; border-radius: 12px;
+                        margin: 10px; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <h4 style="margin-bottom: 5px;">{row['Place_Name']}</h4>
+                <p style="margin: 0;">Kategori: <b>{row['Category']}</b></p>
+                <p style="margin: 0;">Kota: <b>{row['City']}</b></p>
+                <p style="margin: 0;">⭐ Rating: <b>{row['Rating']}</b></p>
+            </div>
+            """
+
+        # Bungkus semua kartu dalam kontainer horizontal
+        container = f"""
+        <div style="display: flex; flex-direction: row; justify-content: space-between;
+                    flex-wrap: nowrap; overflow-x: auto;">
+            {cards_html}
+        </div>
+        """
+        st.markdown(container, unsafe_allow_html=True)
+    else:
+        st.info("Tidak ada rekomendasi ditemukan.")
