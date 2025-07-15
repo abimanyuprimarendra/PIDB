@@ -74,7 +74,7 @@ with st.sidebar.form(key='form_rekomendasi'):
 # ============================
 # 7. Output
 # ============================
-st.title("📍 Sistem Rekomendasi Tempat Wisata di Yogyakarta")
+st.title("Sistem Rekomendasi Tempat Wisata di Yogyakarta")
 
 if cari:
     rekomendasi_df, origin_place = get_recommendation_by_name(selected_place)
