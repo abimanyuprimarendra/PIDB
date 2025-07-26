@@ -63,18 +63,32 @@ def get_recommendation_by_name(place_name, top_n=5):
     return get_recommendations(place_id, top_n), origin
 
 # ============================
-# 6. Sidebar (Auto Search)
+# 6. Sidebar dengan Auto Suggest dan Tombol Cari
 # ============================
 st.sidebar.header("Cari Tempat Wisata")
-selected_place = st.sidebar.text_input("Ketik Nama Tempat", "")
+
+# Text input manual dari user
+user_input = st.sidebar.text_input("Ketik Nama Tempat Wisata", "")
+
+# Filter saran nama tempat yang cocok
+suggestions = tour_df[tour_df['Place_Name'].str.lower().str.contains(user_input.lower())]['Place_Name'].unique()
+
+# Tampilkan suggestion jika ada yang cocok
+if user_input:
+    st.sidebar.markdown("**Saran Tempat:**")
+    for s in suggestions[:5]:  # maksimal 5 saran
+        st.sidebar.markdown(f"- {s}")
+
+# Tombol cari rekomendasi
+cari = st.sidebar.button("Cari Rekomendasi")
 
 # ============================
 # 7. Output
 # ============================
 st.title("Sistem Rekomendasi Tempat Wisata di Yogyakarta")
 
-if selected_place:
-    rekomendasi_df, origin_place = get_recommendation_by_name(selected_place)
+if cari:
+    rekomendasi_df, origin_place = get_recommendation_by_name(user_input)
 
     if origin_place is not None:
         st.markdown(f"Rekomendasi Mirip dengan: **{origin_place['Place_Name']}**")
@@ -86,7 +100,7 @@ if selected_place:
 
             image_url = "https://raw.githubusercontent.com/abimanyuprimarendra/PIDB/main/yk.jpg"
 
-            # CSS Styling tetap
+            # CSS Styling
             card_style = """
                 background-color: #ffffff;
                 border-radius: 15px;
